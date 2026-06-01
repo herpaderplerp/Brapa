@@ -11,12 +11,19 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from sqlalchemy import select
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import LoggedInUser
 from app.db import get_db
+from app.models.photo import Photo
 from app.models.ride import (
     STATUS_DONE,
     STATUS_DUPLICATE,
@@ -26,6 +33,7 @@ from app.models.ride import (
     Ride,
     RidePoint,
 )
+from app.services import exif
 from app.services import garage as garage_svc
 from app.services import storage
 from app.services.processing import process_ride, retry_weather
@@ -192,6 +200,63 @@ async def review_submit(
     return RedirectResponse(f"/rides/{ride_id}", status_code=303)
 
 
+@router.get("/{ride_id}/edit", response_class=HTMLResponse)
+async def edit_page(request: Request, user: LoggedInUser, db: DB, ride_id: uuid.UUID):
+    ride = await _owned_ride(db, user.id, ride_id)
+    bikes = await garage_svc.list_bikes(db, user.id, active_only=True)
+    return templates.TemplateResponse(
+        request,
+        "ride_edit.html",
+        {
+            "title": "Edit ride",
+            "ride": ride,
+            "bikes": bikes,
+            "road_tags": ROAD_TAGS,
+            "mood_tags": MOOD_TAGS,
+        },
+    )
+
+
+@router.post("/{ride_id}/edit")
+async def edit_submit(
+    request: Request,
+    user: LoggedInUser,
+    db: DB,
+    ride_id: uuid.UUID,
+    title: Annotated[str, Form()] = "",
+    description_md: Annotated[str, Form()] = "",
+    bike_id: Annotated[str, Form()] = "",
+    visibility: Annotated[str, Form()] = VISIBILITY_PRIVATE,
+    road_tags: Annotated[list[str], Form()] = (),
+    mood_tags: Annotated[list[str], Form()] = (),
+):
+    ride = await _owned_ride(db, user.id, ride_id)
+    ride.title = title.strip() or _auto_title(ride)
+    ride.description_md = description_md.strip() or None
+    ride.visibility = visibility if visibility in ("public", "friends", "private") else "private"
+    ride.road_tags = [t for t in road_tags if t in ROAD_TAGS]
+    ride.mood_tags = [t for t in mood_tags if t in MOOD_TAGS]
+    if bike_id:
+        try:
+            bike = await garage_svc.get_bike(db, user.id, uuid.UUID(bike_id))
+            ride.bike_id = bike.id if bike else None
+        except ValueError:
+            ride.bike_id = None
+    db.add(ride)
+    return RedirectResponse(f"/rides/{ride_id}", status_code=303)
+
+
+@router.post("/{ride_id}/delete")
+async def delete_ride(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
+    ride = await _owned_ride(db, user.id, ride_id)
+    key = ride.gpx_blob_key
+    await db.delete(ride)  # cascades to points + weather
+    await db.flush()
+    if key:
+        storage.delete(key)
+    return RedirectResponse("/rides", status_code=303)
+
+
 @router.post("/{ride_id}/weather/retry")
 async def weather_retry(
     request: Request,
@@ -218,6 +283,79 @@ async def ride_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
         for p in rows
     ]
     return JSONResponse({"points": points})
+
+
+MAX_PHOTOS = 50
+PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+
+
+@router.post("/{ride_id}/photos")
+async def upload_photos(
+    user: LoggedInUser,
+    db: DB,
+    ride_id: uuid.UUID,
+    files: Annotated[list[UploadFile], File()] = (),
+):
+    ride = await _owned_ride(db, user.id, ride_id)
+    existing = (
+        await db.execute(select(func.count(Photo.id)).where(Photo.ride_id == ride.id))
+    ).scalar_one()
+    seq = existing
+    for f in files:
+        if existing >= MAX_PHOTOS:
+            break
+        data = await f.read()
+        if not data:
+            continue
+        ext = (f.filename or "img.jpg").rsplit(".", 1)[-1]
+        lat, lon, taken = exif.extract(data)
+        key = storage.save_photo(data, ext)
+        db.add(
+            Photo(ride_id=ride.id, blob_key=key, lat=lat, lon=lon, taken_at=taken, seq=seq)
+        )
+        seq += 1
+        existing += 1
+    return RedirectResponse(f"/rides/{ride_id}", status_code=303)
+
+
+@router.get("/{ride_id}/photos/{photo_id}/file")
+async def photo_file(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id: uuid.UUID):
+    await _owned_ride(db, user.id, ride_id)
+    photo = await db.get(Photo, photo_id)
+    if photo is None or photo.ride_id != ride_id:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(storage.path_for(photo.blob_key))
+
+
+@router.post("/{ride_id}/photos/{photo_id}/delete")
+async def delete_photo(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id: uuid.UUID):
+    await _owned_ride(db, user.id, ride_id)
+    photo = await db.get(Photo, photo_id)
+    if photo and photo.ride_id == ride_id:
+        key = photo.blob_key
+        await db.delete(photo)
+        await db.flush()
+        storage.delete(key)
+    return RedirectResponse(f"/rides/{ride_id}", status_code=303)
+
+
+@router.get("/{ride_id}/photos.json")
+async def photos_json(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
+    ride = await _owned_ride(db, user.id, ride_id)
+    rows = (
+        await db.execute(
+            select(Photo).where(Photo.ride_id == ride.id, Photo.lat.isnot(None)).order_by(Photo.seq)
+        )
+    ).scalars().all()
+    return JSONResponse(
+        {
+            "photos": [
+                {"id": str(p.id), "lat": p.lat, "lon": p.lon,
+                 "url": f"/rides/{ride_id}/photos/{p.id}/file"}
+                for p in rows
+            ]
+        }
+    )
 
 
 @router.get("/{ride_id}/gpx")

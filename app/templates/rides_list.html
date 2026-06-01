@@ -14,26 +14,28 @@
   {% if r.processing_status == "processing" %}{% set href = "/rides/" ~ r.id ~ "/processing" %}
   {% elif r.processing_status in ("done", "duplicate") and not r.published %}{% set href = "/rides/" ~ r.id ~ "/review" %}
   {% endif %}
-  <a class="card ride-row" href="{{ href }}">
-    <div style="flex:1;min-width:0">
+  <div class="card ride-row">
+    <a href="{{ href }}" style="flex:1;min-width:0;color:var(--fg);text-decoration:none">
       <strong>{{ r.title or ("Ride in " ~ (r.start_region or "unknown")) }}</strong>
       <div style="color:var(--muted);font-size:.85rem">
         {% if r.start_time %}{{ r.start_time.strftime('%b %-d, %Y') }} · {% endif %}
         {{ r.start_region or "—" }}
         {% if r.distance_m %} · {{ r.distance_m | distance(user.unit_distance) }}{% endif %}
       </div>
-    </div>
-    <div>
-      {% if not r.published and r.processing_status in ("done", "duplicate") %}
-        <span class="tag tag-inactive">Draft</span>
-      {% elif r.processing_status == "processing" %}
-        <span class="tag tag-inactive">Processing</span>
-      {% elif r.processing_status == "failed" %}
-        <span class="tag" style="background:#e06c75;color:#fff">Failed</span>
-      {% elif r.published %}
-        <span class="tag tag-default">{{ r.visibility }}</span>
-      {% endif %}
-    </div>
-  </a>
+    </a>
+    {% if not r.published and r.processing_status in ("done", "duplicate") %}
+      <span class="tag tag-inactive">Draft</span>
+    {% elif r.processing_status == "processing" %}
+      <span class="tag tag-inactive">Processing</span>
+    {% elif r.processing_status == "failed" %}
+      <span class="tag" style="background:#e06c75;color:#fff">Failed</span>
+    {% elif r.published %}
+      <span class="tag tag-default">{{ r.visibility }}</span>
+    {% endif %}
+    <form method="post" action="/rides/{{ r.id }}/delete" style="margin:0"
+          onsubmit="return confirm('Delete this ride permanently? This cannot be undone.')">
+      <button class="link-btn danger" type="submit" title="Delete">✕</button>
+    </form>
+  </div>
 {% endfor %}
 {% endblock %}

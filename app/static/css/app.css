@@ -82,3 +82,11 @@ fieldset legend { color: var(--muted); padding: 0 .4rem; }
 #map { height: 58vh; min-height: 360px; border-radius: 10px; margin-bottom: 1rem; }
 #elevation { height: 220px; }
 .leaflet-container { background: #11141a; }
+.gallery { display: flex; flex-wrap: wrap; gap: .6rem; }
+.gallery-item { position: relative; }
+.gallery-item img {
+  width: 140px; height: 105px; object-fit: cover; border-radius: 8px; display: block;
+}
+.gallery-item .tag { position: absolute; top: 4px; left: 4px; margin: 0; }
+.gallery-item form { position: absolute; top: 2px; right: 4px; margin: 0; }
+.gallery-item form .link-btn { background: rgba(0,0,0,.5); border-radius: 4px; padding: 0 .3rem; }

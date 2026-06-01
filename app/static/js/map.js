@@ -75,6 +75,17 @@
         this.map.removeLayer(this.marker);
       }
     },
+
+    addPhotos(photos) {
+      if (!this.map || !photos) return;
+      photos.forEach((p) => {
+        if (p.lat == null || p.lon == null) return;
+        const m = L.marker([p.lat, p.lon]).addTo(this.map);
+        m.bindPopup(
+          `<a href="${p.url}" target="_blank"><img src="${p.url}" style="max-width:200px;border-radius:6px"></a>`
+        );
+      });
+    },
   };
 
   window.RideMap = RideMap;

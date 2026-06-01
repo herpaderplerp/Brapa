@@ -1,21 +1,70 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card" style="max-width:640px;margin:2rem auto">
-  <div style="display:flex;align-items:center;gap:1rem">
-    {% if u.avatar_url %}
-      <img src="{{ u.avatar_url }}" alt="" width="72" height="72"
-           style="border-radius:50%;object-fit:cover">
-    {% endif %}
-    <div>
-      <h1 style="margin:0">{{ u.display_name }}</h1>
-      <p style="margin:.25rem 0;color:var(--muted)">
-        {{ u.home_region or "Region not set" }} · member since {{ u.created_at.strftime('%b %Y') }}
-      </p>
-    </div>
+<section class="card" style="display:flex;align-items:center;gap:1rem">
+  {% if u.avatar_url %}
+    <img src="{{ u.avatar_url }}" alt="" width="72" height="72"
+         style="border-radius:50%;object-fit:cover">
+  {% endif %}
+  <div style="flex:1">
+    <h1 style="margin:0">{{ u.display_name }}</h1>
+    <p style="margin:.25rem 0;color:var(--muted)">
+      {{ u.home_region or "Region not set" }} · member since {{ u.created_at.strftime('%b %Y') }}
+    </p>
   </div>
-  <p style="color:var(--muted);margin-top:1.5rem">
-    Lifetime stats, garage, and recent rides arrive in a later phase.
-  </p>
-  <a href="/onboarding">Edit profile</a>
+  <a class="link-btn" href="/onboarding">Edit profile</a>
 </section>
+
+<div class="stat-bar card">
+  <div><span>Rides</span><strong>{{ lifetime.rides }}</strong></div>
+  <div><span>Distance</span><strong>{{ lifetime.distance_m | distance(u.unit_distance) }}</strong></div>
+  <div><span>Elev gain</span><strong>{{ lifetime.elev_gain | elev(u.unit_distance) }}</strong></div>
+  <div><span>Moving time</span><strong>{{ lifetime.moving_time_s | duration }}</strong></div>
+</div>
+
+<h2>Garage</h2>
+{% if not bikes %}
+  <div class="card" style="color:var(--muted)">No bikes yet. <a href="/garage">Add one</a>.</div>
+{% else %}
+  <div class="garage-grid">
+    {% for bs in per_bike %}
+      <div class="card" style="flex:0 0 240px">
+        <h3 style="margin:0 0 .25rem">{{ bs.bike.label }}</h3>
+        <p style="margin:0;color:var(--muted);font-size:.85rem">
+          {{ bs.rides }} rides · {{ bs.distance_m | distance(u.unit_distance) }} ·
+          {{ bs.moving_time_s | duration }}
+        </p>
+      </div>
+    {% endfor %}
+    {% for b in bikes if b.id not in per_bike|map(attribute='bike.id')|list %}
+      <div class="card" style="flex:0 0 240px;opacity:.7">
+        <h3 style="margin:0 0 .25rem">{{ b.label }}</h3>
+        <p style="margin:0;color:var(--muted);font-size:.85rem">No rides yet</p>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<h2>Recent rides</h2>
+{% if not rides %}
+  <div class="card" style="color:var(--muted)">No published rides yet.</div>
+{% endif %}
+{% for r in rides %}
+  <a class="card ride-row" href="/rides/{{ r.id }}">
+    <div style="flex:1;min-width:0">
+      <strong>{{ r.title }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">
+        {% if r.start_time %}{{ r.start_time.strftime('%b %-d, %Y') }} · {% endif %}
+        {{ r.start_region or "—" }} · {{ r.distance_m | distance(u.unit_distance) }}
+      </div>
+    </div>
+    <span class="tag tag-default">{{ r.visibility }}</span>
+  </a>
+{% endfor %}
+
+{% if page > 1 or has_next %}
+  <div class="bike-actions" style="justify-content:space-between">
+    {% if page > 1 %}<a class="link-btn" href="/me?page={{ page - 1 }}">← Newer</a>{% else %}<span></span>{% endif %}
+    {% if has_next %}<a class="link-btn" href="/me?page={{ page + 1 }}">Older →</a>{% endif %}
+  </div>
+{% endif %}
 {% endblock %}

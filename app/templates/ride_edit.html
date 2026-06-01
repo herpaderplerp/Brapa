@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Edit ride</h1>
+
+<form class="card" method="post" action="/rides/{{ ride.id }}/edit">
+  <label for="title">Title</label>
+  <input id="title" name="title" maxlength="140" value="{{ ride.title or '' }}">
+
+  <label for="description_md">Notes (markdown)</label>
+  <textarea id="description_md" name="description_md" rows="4">{{ ride.description_md or '' }}</textarea>
+
+  <label for="bike_id">Bike</label>
+  <select id="bike_id" name="bike_id">
+    <option value="">— none —</option>
+    {% for b in bikes %}
+      <option value="{{ b.id }}" {{ 'selected' if ride.bike_id == b.id else '' }}>{{ b.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="visibility">Visibility</label>
+  <select id="visibility" name="visibility">
+    <option value="public" {{ 'selected' if ride.visibility == 'public' else '' }}>Public</option>
+    <option value="friends" {{ 'selected' if ride.visibility == 'friends' else '' }}>Friends only</option>
+    <option value="private" {{ 'selected' if ride.visibility == 'private' else '' }}>Private</option>
+  </select>
+
+  <fieldset style="border:1px solid var(--border);border-radius:6px;margin-top:1rem">
+    <legend>Road type</legend>
+    {% for t in road_tags %}
+      <label class="chk"><input type="checkbox" name="road_tags" value="{{ t }}"
+        {{ 'checked' if t in ride.road_tags else '' }}> {{ t }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset style="border:1px solid var(--border);border-radius:6px;margin-top:1rem">
+    <legend>Mood</legend>
+    {% for t in mood_tags %}
+      <label class="chk"><input type="checkbox" name="mood_tags" value="{{ t }}"
+        {{ 'checked' if t in ride.mood_tags else '' }}> {{ t }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <div class="bike-actions" style="margin-top:1.25rem">
+    <button class="btn" type="submit">Save changes</button>
+    <a class="link-btn" href="/rides/{{ ride.id }}">Cancel</a>
+  </div>
+</form>
+
+<form class="card" method="post" action="/rides/{{ ride.id }}/delete"
+      onsubmit="return confirm('Permanently delete this ride? This cannot be undone.')">
+  <button class="link-btn danger" type="submit">Delete this ride</button>
+</form>
+{% endblock %}

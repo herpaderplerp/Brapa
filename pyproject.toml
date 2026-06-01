@@ -19,6 +19,7 @@ dependencies = [
     "gpxpy>=1.6",
     "shapely>=2.0",
     "pyproj>=3.7",
+    "pillow>=11.0",
 ]
 
 [project.optional-dependencies]

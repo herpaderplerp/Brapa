@@ -15,7 +15,11 @@
     </p>
   </div>
   <div style="white-space:nowrap">
-    {% if not ride.published %}<a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>{% endif %}
+    {% if not ride.published %}
+      <a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>
+    {% else %}
+      <a class="link-btn" href="/rides/{{ ride.id }}/edit">Edit</a>
+    {% endif %}
   </div>
 </div>
 
@@ -50,6 +54,36 @@
   <div class="card"><p>{{ ride.description_md }}</p></div>
 {% endif %}
 
+<div class="card">
+  <h2 style="margin-top:0">Photos</h2>
+  {% if ride.photos %}
+    <div class="gallery">
+      {% for p in ride.photos %}
+        <div class="gallery-item">
+          <a href="/rides/{{ ride.id }}/photos/{{ p.id }}/file" target="_blank">
+            <img src="/rides/{{ ride.id }}/photos/{{ p.id }}/file" alt="">
+          </a>
+          {% if p.lat %}<span class="tag tag-default" title="Geotagged">📍</span>{% endif %}
+          <form method="post" action="/rides/{{ ride.id }}/photos/{{ p.id }}/delete"
+                onsubmit="return confirm('Delete this photo?')">
+            <button class="link-btn danger" type="submit">✕</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:var(--muted)">No photos yet.</p>
+  {% endif %}
+  {% if ride.photos|length < 50 %}
+    <form method="post" action="/rides/{{ ride.id }}/photos" enctype="multipart/form-data"
+          style="margin-top:1rem">
+      <input type="file" name="files" accept="image/*" multiple>
+      <button class="btn" type="submit" style="margin-top:.5rem">Add photos</button>
+      <p style="color:var(--muted);font-size:.8rem">Up to 50 · GPS auto-placed from EXIF if present</p>
+    </form>
+  {% endif %}
+</div>
+
 <div class="card" style="color:var(--muted)">
   <a href="/rides/{{ ride.id }}/gpx">Download original GPX</a>
 </div>
@@ -69,6 +103,10 @@
       .then((data) => {
         RideMap.init(data);
         RideElevation.init(data, (i) => RideMap.showIndex(i), { unit: unit });
+        fetch("/rides/{{ ride.id }}/photos.json")
+          .then((r) => r.json())
+          .then((pd) => RideMap.addPhotos(pd.photos))
+          .catch(() => {});
       })
       .catch((e) => console.error("ride load failed", e));
   })();

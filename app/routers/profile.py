@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import LoggedInUser
 from app.db import get_db
+from app.services import garage as garage_svc
+from app.services import stats as stats_svc
 from app.templating import templates
 
 router = APIRouter()
@@ -40,8 +42,28 @@ async def onboarding_submit(
 
 
 @router.get("/me", response_class=HTMLResponse)
-async def my_profile(request: Request, user: LoggedInUser):
-    # Full lifetime/per-bike stats land in Phase 5; this is the basic profile.
+async def my_profile(
+    request: Request,
+    user: LoggedInUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = 1,
+):
+    page = max(1, page)
+    lifetime = await stats_svc.lifetime_stats(db, user.id)
+    per_bike = await stats_svc.per_bike_stats(db, user.id)
+    bikes = await garage_svc.list_bikes(db, user.id)
+    rides, has_next = await stats_svc.recent_rides(db, user.id, page=page)
     return templates.TemplateResponse(
-        request, "profile.html", {"title": user.display_name or "Profile", "u": user}
+        request,
+        "profile.html",
+        {
+            "title": user.display_name or "Profile",
+            "u": user,
+            "lifetime": lifetime,
+            "per_bike": per_bike,
+            "bikes": bikes,
+            "rides": rides,
+            "page": page,
+            "has_next": has_next,
+        },
     )

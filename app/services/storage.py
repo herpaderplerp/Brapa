@@ -27,6 +27,16 @@ def save_gpx(data: bytes) -> str:
     return key
 
 
+def save_photo(data: bytes, ext: str) -> str:
+    _ensure_root()
+    safe_ext = ext.lower().lstrip(".") or "jpg"
+    key = f"photos/{uuid.uuid4().hex}.{safe_ext}"
+    path = _ROOT / key
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return key
+
+
 def read(key: str) -> bytes:
     return (_ROOT / key).read_bytes()
 

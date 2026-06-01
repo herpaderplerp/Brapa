@@ -78,6 +78,10 @@ class Ride(Base):
     weather: Mapped["RideWeather | None"] = relationship(
         back_populates="ride", cascade="all, delete-orphan", uselist=False, lazy="selectin"
     )
+    photos = relationship(
+        "Photo", back_populates="ride", cascade="all, delete-orphan",
+        order_by="Photo.seq", lazy="selectin"
+    )
 
 
 class RidePoint(Base):

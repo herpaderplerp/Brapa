@@ -51,4 +51,9 @@
 
   <button class="btn" type="submit" style="margin-top:1.25rem">Publish ride</button>
 </form>
+
+<form class="card" method="post" action="/rides/{{ ride.id }}/delete"
+      onsubmit="return confirm('Discard this ride permanently? This cannot be undone.')">
+  <button class="link-btn danger" type="submit">Discard / delete this ride</button>
+</form>
 {% endblock %}
