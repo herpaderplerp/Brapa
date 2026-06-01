@@ -19,8 +19,11 @@ migrate:
 revision:
 	podman compose run --rm app alembic revision --autogenerate -m "$(m)"
 
+# Bind-mount the repo so tests/ (excluded from the image) is visible; the script
+# avoids nested-quote mangling across compose providers. Requires `make up` first
+# (uses the running db service). Pass args via A="...": make test A="-k gpx".
 test:
-	podman compose run --rm app sh -c "pip install -q -e '.[dev]' && pytest -q"
+	podman compose run --rm -v "$(PWD):/app" app sh scripts/test.sh $(A)
 
 shell:
 	podman compose run --rm app bash
