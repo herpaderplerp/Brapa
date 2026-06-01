@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import LoggedInUser
 from app.db import get_db
+from app.models.user import DISCOVER_CHOICES, DISCOVER_EVERYONE
 from app.services import garage as garage_svc
 from app.services import stats as stats_svc
 from app.templating import templates
@@ -30,6 +31,7 @@ async def onboarding_submit(
     avatar_url: Annotated[str, Form()] = "",
     unit_distance: Annotated[str, Form()] = "km",
     unit_temp: Annotated[str, Form()] = "C",
+    discoverability: Annotated[str, Form()] = "everyone",
 ):
     user.display_name = display_name.strip()
     user.home_region = home_region.strip() or None
@@ -37,6 +39,9 @@ async def onboarding_submit(
         user.avatar_url = avatar_url.strip()
     user.unit_distance = "mi" if unit_distance == "mi" else "km"
     user.unit_temp = "F" if unit_temp == "F" else "C"
+    user.discoverability = (
+        discoverability if discoverability in DISCOVER_CHOICES else DISCOVER_EVERYONE
+    )
     db.add(user)
     return RedirectResponse("/me", status_code=303)
 

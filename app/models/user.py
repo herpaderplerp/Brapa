@@ -7,6 +7,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
+# Profile discoverability (who can find you via search / open your profile cold).
+DISCOVER_EVERYONE = "everyone"
+DISCOVER_FOF = "fof"  # friends of friends (shared mutual friend)
+DISCOVER_PRIVATE = "private"  # nobody; reachable only by existing friends/direct invite
+DISCOVER_CHOICES = (DISCOVER_EVERYONE, DISCOVER_FOF, DISCOVER_PRIVATE)
+
 
 class User(Base):
     __tablename__ = "user"
@@ -19,6 +25,7 @@ class User(Base):
     # Unit preferences. distance: "km" | "mi"; temp: "C" | "F".
     unit_distance: Mapped[str] = mapped_column(String(2), default="km")
     unit_temp: Mapped[str] = mapped_column(String(1), default="C")
+    discoverability: Mapped[str] = mapped_column(String(10), default=DISCOVER_EVERYONE)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

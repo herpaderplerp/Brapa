@@ -79,14 +79,20 @@ async def search_users(request: Request, user: LoggedInUser, db: DB, q: str = ""
     results = []
     if q.strip():
         like = f"%{q.strip()}%"
-        results = (
+        candidates = (
             await db.execute(
                 select(User)
                 .where(User.id != user.id, or_(User.display_name.ilike(like), User.email.ilike(like)))
                 .order_by(User.display_name)
-                .limit(25)
+                .limit(50)
             )
         ).scalars().all()
+        # Respect each candidate's discoverability setting.
+        for cand in candidates:
+            if await social.can_discover(db, user.id, cand):
+                results.append(cand)
+            if len(results) >= 25:
+                break
     fids = await social.friend_ids(db, user.id)
     return templates.TemplateResponse(
         request, "user_search.html", {"title": "Find riders", "q": q, "results": results, "friend_ids": fids}
@@ -99,6 +105,9 @@ async def user_profile(request: Request, user: LoggedInUser, db: DB, uid: uuid.U
         return RedirectResponse("/me", status_code=303)
     target = await db.get(User, uid)
     if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Hidden profiles 404 for non-permitted viewers (no enumeration).
+    if not await social.can_discover(db, user.id, target):
         raise HTTPException(status_code=404, detail="User not found")
 
     fids = await social.friend_ids(db, user.id)

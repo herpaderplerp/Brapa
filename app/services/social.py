@@ -120,6 +120,24 @@ async def pending_outgoing(db: AsyncSession, user_id: uuid.UUID) -> list[Friends
     )
 
 
+async def can_discover(db: AsyncSession, viewer_id: uuid.UUID, target) -> bool:
+    """Whether viewer may find/open target's profile, per target.discoverability.
+    Existing friends always can; 'fof' needs a shared mutual friend; 'private' nobody."""
+    from app.models.user import DISCOVER_EVERYONE, DISCOVER_FOF
+
+    if viewer_id == target.id:
+        return True
+    if target.discoverability == DISCOVER_EVERYONE:
+        return True
+    if await are_friends(db, viewer_id, target.id):
+        return True
+    if target.discoverability == DISCOVER_FOF:
+        mine = await friend_ids(db, viewer_id)
+        theirs = await friend_ids(db, target.id)
+        return bool(mine & theirs)  # at least one mutual friend
+    return False  # private
+
+
 async def can_view_ride(db: AsyncSession, viewer_id: uuid.UUID | None, ride: Ride) -> bool:
     if viewer_id is not None and ride.user_id == viewer_id:
         return True
