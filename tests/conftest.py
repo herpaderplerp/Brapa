@@ -1,3 +1,8 @@
+import os
+
+os.environ.setdefault("SESSION_SECRET", "test-session-secret-for-brapa-tests-only")
+os.environ.setdefault("SESSION_HTTPS_ONLY", "false")
+
 import uuid
 
 import pytest

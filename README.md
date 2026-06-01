@@ -9,7 +9,7 @@ See the full spec in `brapa_spec.md` and the implementation plan in
 ## Quick start
 
 ```sh
-cp .env.example .env                  # then set SESSION_SECRET + Google OAuth keys
+cp .env.example .env                  # then generate SESSION_SECRET + set Google OAuth keys
 make vendor                           # download front-end libs into app/static/vendor
 make build
 make up                               # app on http://localhost:8000, db on :5432
@@ -45,7 +45,8 @@ no such file or directory`. Two options:
      brapa-app alembic upgrade head
    podman run -d --name brapa-app-run --network brapa -p 8000:8000 \
      -e DATABASE_URL=postgresql+asyncpg://brapa:brapa@brapa-db:5432/brapa \
-     -e SESSION_SECRET=dev -v "$(pwd)/app:/app/app" brapa-app
+     -e SESSION_SECRET="$(python -c 'import secrets;print(secrets.token_urlsafe(48))')" \
+     -v "$(pwd)/app:/app/app" brapa-app
    ```
    > The `postgis:16-3.4` image is amd64; under libkrun it runs emulated and its
    > first-boot init takes ~15s before the TCP listener is up. Wait for the

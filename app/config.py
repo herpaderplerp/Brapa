@@ -1,13 +1,18 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+INSECURE_SESSION_SECRETS = {"change-me-dev-only", "dev", "secret", "password"}
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://brapa:brapa@db:5432/brapa"
-    session_secret: str = "change-me-dev-only"
+    session_secret: str
+    session_https_only: bool = True
     base_url: str = "http://localhost:8000"
 
     google_client_id: str = ""
@@ -21,6 +26,18 @@ class Settings(BaseSettings):
     # Comma-separated email allowlist. Empty = open registration (anyone with a
     # working OAuth login). Non-empty = only these emails may sign in.
     allowed_emails: str = ""
+
+    @field_validator("session_secret")
+    @classmethod
+    def validate_session_secret(cls, value: str) -> str:
+        secret = value.strip()
+        if not secret:
+            raise ValueError("SESSION_SECRET must be set to a deployment-specific random value")
+        if secret in INSECURE_SESSION_SECRETS:
+            raise ValueError("SESSION_SECRET must not use a known development value")
+        if len(secret) < 32:
+            raise ValueError("SESSION_SECRET must be at least 32 characters long")
+        return secret
 
     @property
     def email_allowlist(self) -> set[str]:
