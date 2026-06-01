@@ -25,7 +25,10 @@
   (cfg.markers || []).forEach((m) => {
     if (m.lat == null || m.lon == null) return;
     const marker = L.marker([m.lat, m.lon]).addTo(map);
-    marker.bindPopup(`<a href="${m.url}">${m.title}</a>`);
+    const link = document.createElement("a");
+    link.href = m.url;
+    link.textContent = m.title || "Ride";
+    marker.bindPopup(link);
     bounds.push([m.lat, m.lon]);
   });
 
