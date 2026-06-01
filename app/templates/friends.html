@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Friends</h1>
+
+{% if incoming %}
+  <h2>Requests to you</h2>
+  {% for f in incoming %}
+    <div class="card ride-row">
+      <a href="/users/{{ f.requester.id }}" style="flex:1;color:var(--fg);text-decoration:none">
+        <strong>{{ f.requester.display_name or f.requester.email }}</strong>
+      </a>
+      <form method="post" action="/friends/{{ f.id }}/accept" style="margin:0">
+        <button class="btn" type="submit">Accept</button>
+      </form>
+      <form method="post" action="/friends/{{ f.id }}/decline" style="margin:0">
+        <button class="link-btn danger" type="submit">Decline</button>
+      </form>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if outgoing %}
+  <h2>Sent requests</h2>
+  {% for f in outgoing %}
+    <div class="card ride-row">
+      <a href="/users/{{ f.addressee.id }}" style="flex:1;color:var(--fg);text-decoration:none">
+        <strong>{{ f.addressee.display_name or f.addressee.email }}</strong>
+      </a>
+      <span class="tag tag-inactive">Pending</span>
+      <form method="post" action="/friends/{{ f.id }}/decline" style="margin:0">
+        <button class="link-btn danger" type="submit">Cancel</button>
+      </form>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<h2>Your friends</h2>
+{% if not friends %}
+  <div class="card" style="color:var(--muted)">No friends yet. <a href="/users">Find riders</a>.</div>
+{% endif %}
+{% for fr in friends %}
+  <div class="card ride-row">
+    <a href="/users/{{ fr.id }}" style="flex:1;color:var(--fg);text-decoration:none">
+      <strong>{{ fr.display_name or fr.email }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">{{ fr.home_region or "" }}</div>
+    </a>
+  </div>
+{% endfor %}
+{% endblock %}

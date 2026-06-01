@@ -1,0 +1,37 @@
+<div class="card feed-card">
+  <div class="feed-head">
+    {% if c.author and c.author.avatar_url %}
+      <img src="{{ c.author.avatar_url }}" alt="" width="40" height="40" style="border-radius:50%">
+    {% endif %}
+    <div>
+      <a href="/users/{{ c.author.id }}" style="font-weight:600">{{ c.author.display_name or "Rider" }}</a>
+      <div style="color:var(--muted);font-size:.8rem">
+        {% if c.ride.start_time %}{{ c.ride.start_time.strftime('%b %-d, %Y') }}{% endif %}
+        {% if c.ride.bike %}· {{ c.ride.bike.label }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <a href="/rides/{{ c.ride.id }}" class="feed-thumb">
+    {% if c.thumb %}
+      <svg viewBox="0 0 260 120" width="100%" height="120" preserveAspectRatio="xMidYMid meet">
+        <polyline points="{{ c.thumb }}" fill="none" stroke="#ff5a36" stroke-width="2"/>
+      </svg>
+    {% endif %}
+    <strong style="display:block;margin-top:.4rem">{{ c.ride.title or "Ride" }}</strong>
+    <span style="color:var(--muted);font-size:.85rem">{{ c.ride.start_region or "—" }}</span>
+  </a>
+
+  <div class="feed-stats">
+    <span>{{ c.ride.distance_m | distance(user.unit_distance) }}</span>
+    <span>{{ c.ride.moving_time_s | duration }}</span>
+    <span>{{ c.ride.elev_gain | elev(user.unit_distance) }}</span>
+  </div>
+
+  <div class="feed-actions">
+    {% with ride=c.ride, like_count=c.likes, liked=c.liked %}
+      {% include "partials/like_button.html" %}
+    {% endwith %}
+    <a class="link-btn" href="/rides/{{ c.ride.id }}#comments">💬 {{ c.comments }}</a>
+  </div>
+</div>

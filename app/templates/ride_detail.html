@@ -8,17 +8,23 @@
   <div>
     <h1 style="margin-bottom:.25rem">{{ ride.title }}</h1>
     <p style="color:var(--muted);margin-top:0">
+      {% if author %}<a href="/users/{{ author.id }}">{{ author.display_name or "Rider" }}</a> · {% endif %}
       {{ ride.start_region or "Unknown region" }}
       {% if ride.start_time %}· {{ ride.start_time.strftime('%b %-d, %Y') }}{% endif %}
-      · {{ ride.visibility }}
+      {% if is_owner %}· {{ ride.visibility }}{% endif %}
       {% if ride.bike %}· {{ ride.bike.label }}{% endif %}
     </p>
   </div>
-  <div style="white-space:nowrap">
-    {% if not ride.published %}
-      <a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>
-    {% else %}
-      <a class="link-btn" href="/rides/{{ ride.id }}/edit">Edit</a>
+  <div style="white-space:nowrap;display:flex;gap:.75rem;align-items:center">
+    {% with ride=ride, like_count=like_count, liked=liked %}
+      {% include "partials/like_button.html" %}
+    {% endwith %}
+    {% if is_owner %}
+      {% if not ride.published %}
+        <a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>
+      {% else %}
+        <a class="link-btn" href="/rides/{{ ride.id }}/edit">Edit</a>
+      {% endif %}
     {% endif %}
   </div>
 </div>
@@ -40,7 +46,7 @@
         {{ fmt_wind(ride.weather.wind_speed, ride.weather.wind_dir, user.unit_distance) }}</strong>
     {% else %}
       <strong>Unavailable
-        <button class="link-btn" hx-post="/rides/{{ ride.id }}/weather/retry">retry</button>
+        {% if is_owner %}<button class="link-btn" hx-post="/rides/{{ ride.id }}/weather/retry">retry</button>{% endif %}
       </strong>
     {% endif %}
   </div>
@@ -64,17 +70,19 @@
             <img src="/rides/{{ ride.id }}/photos/{{ p.id }}/file" alt="">
           </a>
           {% if p.lat %}<span class="tag tag-default" title="Geotagged">📍</span>{% endif %}
+          {% if is_owner %}
           <form method="post" action="/rides/{{ ride.id }}/photos/{{ p.id }}/delete"
                 onsubmit="return confirm('Delete this photo?')">
             <button class="link-btn danger" type="submit">✕</button>
           </form>
+          {% endif %}
         </div>
       {% endfor %}
     </div>
   {% else %}
     <p style="color:var(--muted)">No photos yet.</p>
   {% endif %}
-  {% if ride.photos|length < 50 %}
+  {% if is_owner and ride.photos|length < 50 %}
     <form method="post" action="/rides/{{ ride.id }}/photos" enctype="multipart/form-data"
           style="margin-top:1rem">
       <input type="file" name="files" accept="image/*" multiple>
@@ -82,6 +90,40 @@
       <p style="color:var(--muted);font-size:.8rem">Up to 50 · GPS auto-placed from EXIF if present</p>
     </form>
   {% endif %}
+</div>
+
+<div class="card" id="comments">
+  <h2 style="margin-top:0">Comments</h2>
+  {% if not comments %}
+    <p style="color:var(--muted)">No comments yet.</p>
+  {% endif %}
+  {% for node in comments %}
+    <div class="comment">
+      <strong>{{ node.comment.author.display_name or "Rider" }}</strong>
+      <span style="color:var(--muted);font-size:.8rem">{{ node.comment.created_at.strftime('%b %-d, %Y') }}</span>
+      <p style="margin:.25rem 0">{{ node.comment.body }}</p>
+      <details>
+        <summary class="link-btn">Reply</summary>
+        <form method="post" action="/rides/{{ ride.id }}/comments" style="margin:.5rem 0">
+          <input type="hidden" name="parent_id" value="{{ node.comment.id }}">
+          <textarea name="body" rows="2" required placeholder="Reply…"></textarea>
+          <button class="btn" type="submit" style="margin-top:.4rem">Reply</button>
+        </form>
+      </details>
+      {% for rep in node.replies %}
+        <div class="comment reply">
+          <strong>{{ rep.comment.author.display_name or "Rider" }}</strong>
+          <span style="color:var(--muted);font-size:.8rem">{{ rep.comment.created_at.strftime('%b %-d, %Y') }}</span>
+          <p style="margin:.25rem 0">{{ rep.comment.body }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <form method="post" action="/rides/{{ ride.id }}/comments" style="margin-top:1rem">
+    <textarea name="body" rows="2" required placeholder="Add a comment…"></textarea>
+    <button class="btn" type="submit" style="margin-top:.4rem">Post comment</button>
+  </form>
 </div>
 
 <div class="card" style="color:var(--muted)">

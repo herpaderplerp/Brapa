@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card" style="display:flex;align-items:center;gap:1rem">
+  {% if target.avatar_url %}
+    <img src="{{ target.avatar_url }}" alt="" width="72" height="72"
+         style="border-radius:50%;object-fit:cover">
+  {% endif %}
+  <div style="flex:1">
+    <h1 style="margin:0">{{ target.display_name or "Rider" }}</h1>
+    <p style="margin:.25rem 0;color:var(--muted)">
+      {{ target.home_region or "Region not set" }} · member since {{ target.created_at.strftime('%b %Y') }}
+    </p>
+  </div>
+  <div>
+    {% if rel == "friends" %}
+      <span class="tag tag-default">Friend</span>
+      <form method="post" action="/friends/{{ friendship.id }}/remove" style="margin:.5rem 0 0"
+            onsubmit="return confirm('Remove this friend?')">
+        <button class="link-btn danger" type="submit">Remove</button>
+      </form>
+    {% elif rel == "outgoing" %}
+      <span class="tag tag-inactive">Request sent</span>
+    {% elif rel == "incoming" %}
+      <form method="post" action="/friends/{{ friendship.id }}/accept" style="margin:0">
+        <button class="btn" type="submit">Accept request</button>
+      </form>
+    {% else %}
+      <form method="post" action="/friends/request" style="margin:0">
+        <input type="hidden" name="addressee_id" value="{{ target.id }}">
+        <button class="btn" type="submit">Add friend</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+<h2>Rides</h2>
+{% if not rides %}
+  <div class="card" style="color:var(--muted)">No rides you can see.</div>
+{% endif %}
+{% for r in rides %}
+  <a class="card ride-row" href="/rides/{{ r.id }}">
+    <div style="flex:1;min-width:0">
+      <strong>{{ r.title or "Ride" }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">
+        {% if r.start_time %}{{ r.start_time.strftime('%b %-d, %Y') }} · {% endif %}
+        {{ r.start_region or "—" }} · {{ r.distance_m | distance(user.unit_distance) }}
+      </div>
+    </div>
+    <span class="tag tag-default">{{ r.visibility }}</span>
+  </a>
+{% endfor %}
+{% endblock %}

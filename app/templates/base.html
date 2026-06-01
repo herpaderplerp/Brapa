@@ -16,8 +16,11 @@
     <a class="brand" href="/">Brapa</a>
     <nav>
       {% if user %}
+        <a href="/feed">Feed</a>
         <a href="/rides">My rides</a>
         <a href="/garage">Garage</a>
+        <a href="/friends">Friends</a>
+        <a href="/users">Find</a>
         <a href="/rides/upload">Upload</a>
         <a href="/me">{{ user.display_name or "Profile" }}</a>
         <a href="/logout">Log out</a>

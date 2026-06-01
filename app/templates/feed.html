@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Feed</h1>
+
+<form method="get" action="/feed" class="card feed-filters">
+  <select name="friend" onchange="this.form.submit()">
+    <option value="">All friends</option>
+    {% for f in friends %}
+      <option value="{{ f.id }}" {{ 'selected' if sel_friend == (f.id|string) else '' }}>
+        {{ f.display_name or f.email }}
+      </option>
+    {% endfor %}
+  </select>
+  <select name="road" onchange="this.form.submit()">
+    <option value="">All road types</option>
+    {% for t in road_tags %}
+      <option value="{{ t }}" {{ 'selected' if sel_road == t else '' }}>{{ t }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button class="btn" type="submit">Filter</button></noscript>
+</form>
+
+{% if not cards %}
+  <div class="card" style="color:var(--muted)">
+    Nothing here yet. <a href="/users">Find riders</a> and add friends, or wait for them to post.
+  </div>
+{% endif %}
+
+<div class="feed-grid">
+  {% for c in cards %}
+    {% include "partials/feed_card.html" %}
+  {% endfor %}
+</div>
+
+{% if page > 1 or has_next %}
+  <div class="bike-actions" style="justify-content:space-between">
+    {% if page > 1 %}<a class="link-btn" href="/feed?page={{ page - 1 }}&friend={{ sel_friend }}&road={{ sel_road }}">← Newer</a>{% else %}<span></span>{% endif %}
+    {% if has_next %}<a class="link-btn" href="/feed?page={{ page + 1 }}&friend={{ sel_friend }}&road={{ sel_road }}">Older →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

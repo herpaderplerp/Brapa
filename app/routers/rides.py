@@ -33,8 +33,11 @@ from app.models.ride import (
     Ride,
     RidePoint,
 )
+from app.models.user import User
 from app.services import exif
+from app.services import feed as feed_svc
 from app.services import garage as garage_svc
+from app.services import social
 from app.services import storage
 from app.services.processing import process_ride, retry_weather
 from app.templating import templates
@@ -51,6 +54,15 @@ MOOD_TAGS = ["Casual", "Spirited", "Touring", "Commute"]
 async def _owned_ride(db: AsyncSession, user_id: uuid.UUID, ride_id: uuid.UUID) -> Ride:
     ride = await db.get(Ride, ride_id)
     if ride is None or ride.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    return ride
+
+
+async def _viewable_ride(db: AsyncSession, viewer_id: uuid.UUID, ride_id: uuid.UUID) -> Ride:
+    """Ride the viewer is allowed to see (owner / public / friends-only). 404 otherwise
+    so private rides never leak existence."""
+    ride = await db.get(Ride, ride_id)
+    if ride is None or not await social.can_view_ride(db, viewer_id, ride):
         raise HTTPException(status_code=404, detail="Ride not found")
     return ride
 
@@ -272,7 +284,7 @@ async def weather_retry(
 
 @router.get("/{ride_id}/points.json")
 async def ride_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
-    ride = await _owned_ride(db, user.id, ride_id)
+    ride = await _viewable_ride(db, user.id, ride_id)
     rows = (
         await db.execute(
             select(RidePoint).where(RidePoint.ride_id == ride.id).order_by(RidePoint.seq)
@@ -320,7 +332,7 @@ async def upload_photos(
 
 @router.get("/{ride_id}/photos/{photo_id}/file")
 async def photo_file(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id: uuid.UUID):
-    await _owned_ride(db, user.id, ride_id)
+    await _viewable_ride(db, user.id, ride_id)
     photo = await db.get(Photo, photo_id)
     if photo is None or photo.ride_id != ride_id:
         raise HTTPException(status_code=404, detail="Photo not found")
@@ -341,7 +353,7 @@ async def delete_photo(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id:
 
 @router.get("/{ride_id}/photos.json")
 async def photos_json(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
-    ride = await _owned_ride(db, user.id, ride_id)
+    ride = await _viewable_ride(db, user.id, ride_id)
     rows = (
         await db.execute(
             select(Photo).where(Photo.ride_id == ride.id, Photo.lat.isnot(None)).order_by(Photo.seq)
@@ -361,7 +373,7 @@ async def photos_json(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
 @router.get("/{ride_id}/gpx")
 async def download_gpx(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
     # Data export, no lock-in (NFR). Owner only for now.
-    ride = await _owned_ride(db, user.id, ride_id)
+    ride = await _viewable_ride(db, user.id, ride_id)
     if not ride.gpx_blob_key:
         raise HTTPException(status_code=404, detail="No file")
     data = storage.read(ride.gpx_blob_key)
@@ -372,12 +384,56 @@ async def download_gpx(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
     )
 
 
+@router.post("/{ride_id}/like", response_class=HTMLResponse)
+async def toggle_like(request: Request, user: LoggedInUser, db: DB, ride_id: uuid.UUID):
+    ride = await _viewable_ride(db, user.id, ride_id)
+    await feed_svc.toggle_like(db, ride.id, user.id)
+    await db.flush()
+    count = await feed_svc.like_count(db, ride.id)
+    liked = await feed_svc.has_liked(db, ride.id, user.id)
+    return templates.TemplateResponse(
+        request, "partials/like_button.html",
+        {"ride": ride, "like_count": count, "liked": liked},
+    )
+
+
+@router.post("/{ride_id}/comments")
+async def post_comment(
+    user: LoggedInUser,
+    db: DB,
+    ride_id: uuid.UUID,
+    body: Annotated[str, Form()],
+    parent_id: Annotated[str, Form()] = "",
+):
+    ride = await _viewable_ride(db, user.id, ride_id)
+    pid = None
+    if parent_id:
+        try:
+            pid = uuid.UUID(parent_id)
+        except ValueError:
+            pid = None
+    await feed_svc.add_comment(db, ride.id, user.id, body, pid)
+    return RedirectResponse(f"/rides/{ride_id}#comments", status_code=303)
+
+
 @router.get("/{ride_id}", response_class=HTMLResponse)
 async def ride_detail(request: Request, user: LoggedInUser, db: DB, ride_id: uuid.UUID):
-    # Minimal stub; full map + stats + elevation land in Phase 4.
-    ride = await _owned_ride(db, user.id, ride_id)
+    ride = await _viewable_ride(db, user.id, ride_id)
+    is_owner = ride.user_id == user.id
+    author = await db.get(User, ride.user_id)
+    likes, liked, comments = await feed_svc.ride_social(db, ride.id, user.id)
     return templates.TemplateResponse(
-        request, "ride_detail.html", {"title": ride.title or "Ride", "ride": ride}
+        request,
+        "ride_detail.html",
+        {
+            "title": ride.title or "Ride",
+            "ride": ride,
+            "is_owner": is_owner,
+            "author": author,
+            "like_count": likes,
+            "liked": liked,
+            "comments": comments,
+        },
     )
 
 

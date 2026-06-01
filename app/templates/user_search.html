@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Find riders</h1>
+<form method="get" action="/users" class="card">
+  <input name="q" value="{{ q }}" placeholder="Search by name or email" autofocus>
+  <button class="btn" type="submit" style="margin-top:.5rem">Search</button>
+</form>
+
+{% if q and not results %}
+  <div class="card" style="color:var(--muted)">No riders match “{{ q }}”.</div>
+{% endif %}
+{% for u in results %}
+  <div class="card ride-row">
+    <a href="/users/{{ u.id }}" style="flex:1;color:var(--fg);text-decoration:none">
+      <strong>{{ u.display_name or u.email }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">{{ u.home_region or "" }}</div>
+    </a>
+    {% if u.id in friend_ids %}
+      <span class="tag tag-default">Friend</span>
+    {% else %}
+      <form method="post" action="/friends/request" style="margin:0">
+        <input type="hidden" name="addressee_id" value="{{ u.id }}">
+        <button class="btn" type="submit">Add friend</button>
+      </form>
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}

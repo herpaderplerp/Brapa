@@ -9,7 +9,7 @@ from app.auth.deps import SESSION_USER_KEY, _NotAuthenticated
 from app.config import settings
 from app.db import SessionLocal
 from app.models.user import User
-from app.routers import auth, garage, profile, rides
+from app.routers import auth, feed, friends, garage, profile, rides
 from app.templating import BASE_DIR, templates
 
 app = FastAPI(title="Brapa")
@@ -47,6 +47,8 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(garage.router)
 app.include_router(rides.router)
+app.include_router(friends.router)
+app.include_router(feed.router)
 
 
 @app.get("/healthz")

@@ -1,0 +1,4 @@
+<button class="like-btn {{ 'liked' if liked else '' }}"
+        hx-post="/rides/{{ ride.id }}/like" hx-swap="outerHTML">
+  {{ '♥' if liked else '♡' }} <span>{{ like_count }}</span>
+</button>
