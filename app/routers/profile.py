@@ -4,9 +4,13 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import LoggedInUser
+from sqlalchemy import select
+
+from app.auth.deps import SESSION_USER_KEY, LoggedInUser
 from app.db import get_db
-from app.models.user import DISCOVER_CHOICES, DISCOVER_EVERYONE
+from app.models.ride import Ride
+from app.models.user import DISCOVER_CHOICES, DISCOVER_EVERYONE, User
+from app.services import storage
 from app.services import garage as garage_svc
 from app.services import stats as stats_svc
 from app.templating import templates
@@ -44,6 +48,37 @@ async def onboarding_submit(
     )
     db.add(user)
     return RedirectResponse("/me", status_code=303)
+
+
+@router.post("/account/delete")
+async def delete_account(
+    request: Request,
+    user: LoggedInUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    confirm: Annotated[str, Form()] = "",
+):
+    # Require the literal word "confirm" (server-side guard, not just the UI).
+    if confirm.strip().lower() != "confirm":
+        return RedirectResponse("/onboarding?confirm=bad", status_code=303)
+
+    # Collect blob keys before the DB cascade so we can purge files too.
+    keys: list[str] = []
+    rides = (await db.execute(select(Ride).where(Ride.user_id == user.id))).scalars().all()
+    for r in rides:
+        if r.gpx_blob_key:
+            keys.append(r.gpx_blob_key)
+        for p in r.photos:
+            keys.append(p.blob_key)
+
+    # Re-fetch in this session so delete works regardless of where `user` came from.
+    target = await db.get(User, user.id)
+    await db.delete(target)  # FK ondelete=CASCADE removes bikes/rides/social/etc.
+    await db.flush()
+    for k in keys:
+        storage.delete(k)
+
+    request.session.pop(SESSION_USER_KEY, None)
+    return RedirectResponse("/", status_code=303)
 
 
 @router.get("/me", response_class=HTMLResponse)
