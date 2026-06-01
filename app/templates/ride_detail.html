@@ -31,6 +31,12 @@
 </div>
 
 {% if ride.processing_status in ("done", "duplicate") %}
+  {% if is_owner %}
+    <p id="place-hint" hidden style="color:var(--accent)">Click the map to place this photo.</p>
+    <form id="place-form" method="post" hidden>
+      <input type="hidden" name="lat"><input type="hidden" name="lon">
+    </form>
+  {% endif %}
   <div id="map" data-ride-id="{{ ride.id }}"></div>
 {% endif %}
 
@@ -72,6 +78,10 @@
           </a>
           {% if p.lat %}<span class="tag tag-default" title="Geotagged">📍</span>{% endif %}
           {% if is_owner %}
+          {% if not p.lat and ride.processing_status in ("done", "duplicate") %}
+          <button type="button" class="link-btn place-btn"
+                  onclick="RideMap.placePhoto('{{ ride.id }}', '{{ p.id }}')">Place 📍</button>
+          {% endif %}
           <form method="post" action="/rides/{{ ride.id }}/photos/{{ p.id }}/delete"
                 onsubmit="return confirm('Delete this photo?')">
             <button class="link-btn danger" type="submit">✕</button>

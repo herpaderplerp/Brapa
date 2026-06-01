@@ -118,6 +118,24 @@
         );
       });
     },
+
+    // Manual photo placement (US-14): arm a one-shot map click that posts the
+    // clicked coords to the place endpoint, then reloads.
+    placePhoto(rideId, photoId) {
+      if (!this.map) return;
+      this._placing = true;
+      document.getElementById("place-hint")?.removeAttribute("hidden");
+      const handler = (e) => {
+        this.map.off("click", handler);
+        this._placing = false;
+        const form = document.getElementById("place-form");
+        form.action = `/rides/${rideId}/photos/${photoId}/place`;
+        form.querySelector('input[name="lat"]').value = e.latlng.lat.toFixed(6);
+        form.querySelector('input[name="lon"]').value = e.latlng.lng.toFixed(6);
+        form.submit();
+      };
+      this.map.on("click", handler);
+    },
   };
 
   window.RideMap = RideMap;

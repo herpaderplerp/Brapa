@@ -386,6 +386,28 @@ async def delete_photo(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id:
     return RedirectResponse(f"/rides/{ride_id}", status_code=303)
 
 
+@router.post("/{ride_id}/photos/{photo_id}/place")
+async def place_photo(
+    user: LoggedInUser,
+    db: DB,
+    ride_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    lat: Annotated[float, Form()],
+    lon: Annotated[float, Form()],
+):
+    # Manual geotag placement (US-14) for photos without EXIF GPS. Owner only.
+    await _owned_ride(db, user.id, ride_id)
+    photo = await db.get(Photo, photo_id)
+    if photo is None or photo.ride_id != ride_id:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise HTTPException(status_code=422, detail="Bad coordinates")
+    photo.lat = lat
+    photo.lon = lon
+    db.add(photo)
+    return RedirectResponse(f"/rides/{ride_id}", status_code=303)
+
+
 @router.get("/{ride_id}/photos.json")
 async def photos_json(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
     ride = await _viewable_ride(db, user.id, ride_id)
