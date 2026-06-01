@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card" style="max-width:640px;margin:2rem auto">
+  <div style="display:flex;align-items:center;gap:1rem">
+    {% if u.avatar_url %}
+      <img src="{{ u.avatar_url }}" alt="" width="72" height="72"
+           style="border-radius:50%;object-fit:cover">
+    {% endif %}
+    <div>
+      <h1 style="margin:0">{{ u.display_name }}</h1>
+      <p style="margin:.25rem 0;color:var(--muted)">
+        {{ u.home_region or "Region not set" }} · member since {{ u.created_at.strftime('%b %Y') }}
+      </p>
+    </div>
+  </div>
+  <p style="color:var(--muted);margin-top:1.5rem">
+    Lifetime stats, garage, and recent rides arrive in a later phase.
+  </p>
+  <a href="/onboarding">Edit profile</a>
+</section>
+{% endblock %}

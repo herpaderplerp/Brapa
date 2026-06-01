@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload a ride</h1>
+{% if needs_bike %}
+  <div class="card" style="border-color:var(--accent)">
+    <p>You need at least one active bike before uploading.</p>
+    <a class="btn" href="/garage">Go to garage</a>
+  </div>
+{% else %}
+  <form class="card" method="post" action="/rides/upload" enctype="multipart/form-data"
+        x-data="{drag:false, name:''}"
+        @dragover.prevent="drag=true" @dragleave.prevent="drag=false"
+        @drop.prevent="drag=false; $refs.file.files = $event.dataTransfer.files; name = $refs.file.files[0]?.name || ''">
+    <div class="dropzone" :class="{over:drag}" @click="$refs.file.click()">
+      <p x-text="name || 'Drop a .gpx here, or click to choose'"></p>
+    </div>
+    <input x-ref="file" type="file" name="file" accept=".gpx" required
+           style="display:none" @change="name = $refs.file.files[0]?.name || ''">
+    <p style="color:var(--muted);font-size:.85rem">GPX 1.0 / 1.1 · max 50 MB</p>
+    <button class="btn" type="submit">Upload</button>
+  </form>
+{% endif %}
+{% endblock %}

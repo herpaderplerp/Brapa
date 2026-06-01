@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Your garage</h1>
+<p style="color:var(--muted)">Add the bikes you ride. Tag each ride with the one you were on.</p>
+
+<div class="garage-grid">
+  <section class="card">
+    <h2 style="margin-top:0">Add a bike</h2>
+    <form hx-post="/garage" hx-target="#bike-list" hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+      <label for="make">Make *</label>
+      <input id="make" name="make" required placeholder="e.g. Yamaha">
+      <label for="model">Model *</label>
+      <input id="model" name="model" required placeholder="e.g. MT-07">
+      <label for="year">Year</label>
+      <input id="year" name="year" inputmode="numeric" placeholder="e.g. 2022">
+      <label for="nickname">Nickname</label>
+      <input id="nickname" name="nickname" placeholder="optional">
+      <label for="photo_url">Photo URL</label>
+      <input id="photo_url" name="photo_url" type="url" placeholder="optional">
+      <button class="btn" type="submit" style="margin-top:1rem">Add bike</button>
+    </form>
+  </section>
+
+  <div style="flex:1;min-width:0">
+    {% include "partials/bike_list.html" %}
+  </div>
+</div>
+{% endblock %}

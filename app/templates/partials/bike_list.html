@@ -1,0 +1,10 @@
+<div id="bike-list">
+  {% if not bikes %}
+    <div class="card" style="color:var(--muted)">
+      No bikes yet. Add one to start logging rides.
+    </div>
+  {% endif %}
+  {% for bike in bikes %}
+    {% include "partials/bike_card.html" %}
+  {% endfor %}
+</div>

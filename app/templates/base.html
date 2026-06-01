@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ title or "Brapa" }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  {# Map/chart CSS injected per-page via the head block below #}
+  {% block head %}{% endblock %}
+  <!-- Vendored libs (run `make vendor` to populate app/static/vendor) -->
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/vendor/alpine.min.js" defer></script>
+</head>
+<body hx-boost="true">
+  <header class="topbar">
+    <a class="brand" href="/">Brapa</a>
+    <nav>
+      {% if user %}
+        <a href="/rides">My rides</a>
+        <a href="/garage">Garage</a>
+        <a href="/rides/upload">Upload</a>
+        <a href="/me">{{ user.display_name or "Profile" }}</a>
+        <a href="/logout">Log out</a>
+      {% else %}
+        <a href="/login">Log in</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

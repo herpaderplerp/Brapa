@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Review &amp; publish</h1>
+<p style="color:var(--muted)">Check the details, then publish your ride.</p>
+
+<div class="stat-bar card">
+  <div><span>Distance</span><strong>{{ ride.distance_m | distance(user.unit_distance) }}</strong></div>
+  <div><span>Moving</span><strong>{{ ride.moving_time_s | duration }}</strong></div>
+  <div><span>Avg</span><strong>{{ ride.avg_moving_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Max</span><strong>{{ ride.max_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Elev gain</span><strong>{{ ride.elev_gain | elev(user.unit_distance) }}</strong></div>
+  {% if ride.weather and ride.weather.status == "ok" %}
+    <div><span>Weather</span><strong>{{ ride.weather.sky or "—" }}, {{ ride.weather.temp_c | temp(user.unit_temp) }}</strong></div>
+  {% endif %}
+</div>
+
+<form class="card" method="post" action="/rides/{{ ride.id }}/review">
+  <label for="title">Title</label>
+  <input id="title" name="title" maxlength="140" placeholder="{{ default_title }}">
+
+  <label for="description_md">Notes (markdown)</label>
+  <textarea id="description_md" name="description_md" rows="4"></textarea>
+
+  <label for="bike_id">Bike</label>
+  <select id="bike_id" name="bike_id">
+    {% for b in bikes %}
+      <option value="{{ b.id }}" {{ 'selected' if b.is_default else '' }}>{{ b.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="visibility">Visibility</label>
+  <select id="visibility" name="visibility">
+    <option value="public">Public</option>
+    <option value="friends">Friends only</option>
+    <option value="private" selected>Private</option>
+  </select>
+
+  <fieldset style="border:1px solid var(--border);border-radius:6px;margin-top:1rem">
+    <legend>Road type</legend>
+    {% for t in road_tags %}
+      <label class="chk"><input type="checkbox" name="road_tags" value="{{ t }}"> {{ t }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset style="border:1px solid var(--border);border-radius:6px;margin-top:1rem">
+    <legend>Mood</legend>
+    {% for t in mood_tags %}
+      <label class="chk"><input type="checkbox" name="mood_tags" value="{{ t }}"> {{ t }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <button class="btn" type="submit" style="margin-top:1.25rem">Publish ride</button>
+</form>
+{% endblock %}

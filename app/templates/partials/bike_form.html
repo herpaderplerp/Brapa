@@ -1,0 +1,16 @@
+<div class="card bike-card">
+  <h3 style="margin-top:0">Edit bike</h3>
+  <form hx-post="/garage/{{ bike.id }}" hx-target="#bike-list" hx-swap="outerHTML">
+    <label>Make *<input name="make" required value="{{ bike.make }}"></label>
+    <label>Model *<input name="model" required value="{{ bike.model }}"></label>
+    <label>Year<input name="year" inputmode="numeric" value="{{ bike.year or '' }}"></label>
+    <label>Nickname<input name="nickname" value="{{ bike.nickname or '' }}"></label>
+    <label>Photo URL<input name="photo_url" type="url" value="{{ bike.photo_url or '' }}"></label>
+    <div class="bike-actions" style="margin-top:.75rem">
+      <button class="btn" type="submit">Save</button>
+      <button class="link-btn" type="button"
+              hx-get="/garage" hx-select="#bike-list" hx-target="#bike-list"
+              hx-swap="outerHTML">Cancel</button>
+    </div>
+  </form>
+</div>

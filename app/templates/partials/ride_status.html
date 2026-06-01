@@ -1,0 +1,26 @@
+{% if ride.processing_status == "processing" %}
+  <div id="status" hx-get="/rides/{{ ride.id }}/status"
+       hx-trigger="every 1500ms" hx-swap="outerHTML">
+    <div class="spinner"></div>
+    <p style="color:var(--muted)">Crunching your track, stats, and weather…</p>
+  </div>
+{% elif ride.processing_status == "failed" %}
+  <div id="status">
+    <p style="color:#e06c75">Processing failed.</p>
+    <p style="color:var(--muted)">{{ ride.processing_error or "Could not read this GPX file." }}</p>
+    <a class="btn" href="/rides/upload">Try another file</a>
+  </div>
+{% elif ride.processing_status == "duplicate" %}
+  <div id="status">
+    <p style="color:var(--accent)">Looks like a duplicate</p>
+    <p style="color:var(--muted)">
+      A ride with the same start time and location already exists.
+    </p>
+    <div style="display:flex;gap:1rem;justify-content:center;margin-top:1rem">
+      <button class="btn" hx-post="/rides/{{ ride.id }}/import-anyway">Import anyway</button>
+      <a class="link-btn" href="/me">Discard</a>
+    </div>
+  </div>
+{% else %}
+  <div id="status"><p style="color:var(--muted)">Done.</p></div>
+{% endif %}

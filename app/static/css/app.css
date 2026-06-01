@@ -1,0 +1,81 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --fg: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #ff5a36;
+  --border: #262b35;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+a { color: var(--accent); text-decoration: none; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.topbar .brand { font-weight: 700; font-size: 1.25rem; color: var(--fg); }
+.topbar nav a { margin-left: 1rem; color: var(--muted); }
+.topbar nav a:hover { color: var(--fg); }
+.content { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+.hero { text-align: center; padding: 4rem 1rem; }
+.hero h1 { font-size: 3rem; margin: 0 0 0.5rem; }
+.hero p { color: var(--muted); font-size: 1.1rem; }
+.btn {
+  display: inline-block; margin-top: 1.5rem; padding: 0.7rem 1.4rem;
+  background: var(--accent); color: #fff; border-radius: 8px; font-weight: 600;
+  border: none; cursor: pointer;
+}
+.btn:hover { filter: brightness(1.08); }
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1rem; margin-bottom: 1rem;
+}
+label { display: block; margin: 0.75rem 0 0.25rem; color: var(--muted); font-size: 0.9rem; }
+input, select, textarea {
+  width: 100%; padding: 0.55rem 0.7rem; background: #11141a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.garage-grid { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
+.garage-grid > .card { flex: 0 0 320px; }
+.bike-card.inactive { opacity: 0.55; }
+.bike-actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; }
+.link-btn {
+  background: none; border: none; color: var(--accent); cursor: pointer;
+  padding: 0; font-size: 0.9rem;
+}
+.link-btn.danger { color: #e06c75; }
+.tag {
+  display: inline-block; font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 999px;
+  margin-left: 0.4rem; vertical-align: middle;
+}
+.tag-default { background: var(--accent); color: #fff; }
+.tag-inactive { background: #3a3f4b; color: var(--muted); }
+@media (max-width: 720px) { .garage-grid > .card { flex: 1 1 100%; } }
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 2.5rem 1rem;
+  text-align: center; cursor: pointer; color: var(--muted); transition: border-color .15s;
+}
+.dropzone.over { border-color: var(--accent); color: var(--fg); }
+.spinner {
+  width: 36px; height: 36px; margin: 1rem auto; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.stat-bar { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.stat-bar > div { display: flex; flex-direction: column; }
+.stat-bar span { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+.stat-bar strong { font-size: 1.05rem; }
+.chk { display: inline-flex; align-items: center; gap: .35rem; margin: .25rem .75rem .25rem 0; color: var(--fg); }
+.chk input { width: auto; }
+fieldset legend { color: var(--muted); padding: 0 .4rem; }
+.ride-row {
+  display: flex; align-items: center; gap: 1rem; color: var(--fg);
+  text-decoration: none; transition: border-color .15s;
+}
+.ride-row:hover { border-color: var(--accent); }

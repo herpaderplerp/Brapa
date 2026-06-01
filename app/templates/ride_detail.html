@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ ride.title }}</h1>
+<p style="color:var(--muted)">
+  {{ ride.start_region or "Unknown region" }}
+  {% if ride.start_time %}· {{ ride.start_time.strftime('%b %-d, %Y') }}{% endif %}
+  · {{ ride.visibility }}
+  {% if ride.bike %}· {{ ride.bike.label }}{% endif %}
+</p>
+
+<div class="stat-bar card">
+  <div><span>Distance</span><strong>{{ ride.distance_m | distance(user.unit_distance) }}</strong></div>
+  <div><span>Moving</span><strong>{{ ride.moving_time_s | duration }}</strong></div>
+  <div><span>Avg</span><strong>{{ ride.avg_moving_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Max</span><strong>{{ ride.max_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Elev gain</span><strong>{{ ride.elev_gain | elev(user.unit_distance) }}</strong></div>
+  <div>
+    <span>Weather</span>
+    {% if ride.weather and ride.weather.status == "ok" %}
+      <strong>{{ ride.weather.sky or "—" }}, {{ ride.weather.temp_c | temp(user.unit_temp) }}</strong>
+    {% else %}
+      <strong>Unavailable
+        <button class="link-btn" hx-post="/rides/{{ ride.id }}/weather/retry">retry</button>
+      </strong>
+    {% endif %}
+  </div>
+</div>
+
+{% if ride.description_md %}
+  <div class="card"><p>{{ ride.description_md }}</p></div>
+{% endif %}
+
+<div class="card" style="color:var(--muted)">
+  Map and elevation profile arrive in the next phase.
+  <a href="/rides/{{ ride.id }}/gpx">Download original GPX</a>
+</div>
+{% endblock %}

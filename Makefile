@@ -1,0 +1,39 @@
+.PHONY: build up down logs migrate revision test shell fmt vendor
+
+build:
+	podman compose build
+
+up:
+	podman compose up -d
+
+down:
+	podman compose down
+
+logs:
+	podman compose logs -f app
+
+# Run Alembic inside the app container against the db service.
+migrate:
+	podman compose run --rm app alembic upgrade head
+
+revision:
+	podman compose run --rm app alembic revision --autogenerate -m "$(m)"
+
+test:
+	podman compose run --rm app sh -c "pip install -q -e '.[dev]' && pytest -q"
+
+shell:
+	podman compose run --rm app bash
+
+fmt:
+	podman compose run --rm app ruff format app tests
+
+# Download front-end libs into app/static/vendor (run on host, needs curl).
+vendor:
+	mkdir -p app/static/vendor
+	curl -fsSL https://unpkg.com/htmx.org@2/dist/htmx.min.js          -o app/static/vendor/htmx.min.js
+	curl -fsSL https://unpkg.com/alpinejs@3/dist/cdn.min.js            -o app/static/vendor/alpine.min.js
+	curl -fsSL https://unpkg.com/leaflet@1.9.4/dist/leaflet.js         -o app/static/vendor/leaflet.js
+	curl -fsSL https://unpkg.com/leaflet@1.9.4/dist/leaflet.css        -o app/static/vendor/leaflet.css
+	curl -fsSL https://unpkg.com/uplot@1.6.31/dist/uPlot.iife.min.js   -o app/static/vendor/uplot.iife.min.js
+	curl -fsSL https://unpkg.com/uplot@1.6.31/dist/uPlot.min.css       -o app/static/vendor/uplot.min.css

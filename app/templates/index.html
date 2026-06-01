@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Brapa</h1>
+  <p>Upload your rides. See your lines. Share the road.</p>
+  {% if not user %}
+    <a class="btn" href="/login">Get started</a>
+  {% else %}
+    <a class="btn" href="/rides/upload">Upload a ride</a>
+  {% endif %}
+</section>
+{% endblock %}

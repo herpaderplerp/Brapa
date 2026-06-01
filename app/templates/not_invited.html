@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card" style="max-width:460px;margin:3rem auto;text-align:center">
+  <h1>You're not on the list</h1>
+  <p style="color:var(--muted)">
+    Brapa is currently invite-only.
+    {% if email %}The account <strong>{{ email }}</strong> isn't on the allowlist.{% endif %}
+  </p>
+  <a class="btn" href="/">Back home</a>
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+<div class="card bike-card {{ 'inactive' if not bike.is_active else '' }}">
+  <div style="display:flex;gap:1rem;align-items:center">
+    {% if bike.photo_url %}
+      <img src="{{ bike.photo_url }}" alt="" width="64" height="64"
+           style="border-radius:8px;object-fit:cover">
+    {% endif %}
+    <div style="flex:1;min-width:0">
+      <h3 style="margin:0">
+        {{ bike.label }}
+        {% if bike.is_default %}<span class="tag tag-default">Default</span>{% endif %}
+        {% if not bike.is_active %}<span class="tag tag-inactive">Inactive</span>{% endif %}
+      </h3>
+      <p style="margin:.2rem 0;color:var(--muted)">
+        {{ bike.year or "" }} {{ bike.make }} {{ bike.model }}
+      </p>
+    </div>
+  </div>
+  <div class="bike-actions">
+    <button class="link-btn" hx-get="/garage/{{ bike.id }}/edit"
+            hx-target="closest .bike-card" hx-swap="outerHTML">Edit</button>
+    {% if bike.is_active and not bike.is_default %}
+      <button class="link-btn" hx-post="/garage/{{ bike.id }}/default"
+              hx-target="#bike-list" hx-swap="outerHTML">Set default</button>
+    {% endif %}
+    {% if bike.is_active %}
+      <button class="link-btn danger" hx-post="/garage/{{ bike.id }}/active"
+              hx-vals='{"active":"false"}'
+              hx-target="#bike-list" hx-swap="outerHTML"
+              hx-confirm="Mark this bike inactive? Past rides keep it.">Deactivate</button>
+    {% else %}
+      <button class="link-btn" hx-post="/garage/{{ bike.id }}/active"
+              hx-vals='{"active":"true"}'
+              hx-target="#bike-list" hx-swap="outerHTML">Reactivate</button>
+    {% endif %}
+  </div>
+</div>
