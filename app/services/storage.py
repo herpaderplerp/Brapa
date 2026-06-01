@@ -27,9 +27,16 @@ def save_gpx(data: bytes) -> str:
     return key
 
 
+PHOTO_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "heic"}
+
+
 def save_photo(data: bytes, ext: str) -> str:
     _ensure_root()
-    safe_ext = ext.lower().lstrip(".") or "jpg"
+    safe_ext = ext.lower().lstrip(".")
+    if safe_ext == "jpeg":
+        safe_ext = "jpg"
+    if safe_ext not in PHOTO_EXTENSIONS:
+        safe_ext = "jpg"
     key = f"photos/{uuid.uuid4().hex}.{safe_ext}"
     path = _ROOT / key
     path.parent.mkdir(parents=True, exist_ok=True)
