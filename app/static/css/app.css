@@ -79,3 +79,6 @@ fieldset legend { color: var(--muted); padding: 0 .4rem; }
   text-decoration: none; transition: border-color .15s;
 }
 .ride-row:hover { border-color: var(--accent); }
+#map { height: 58vh; min-height: 360px; border-radius: 10px; margin-bottom: 1rem; }
+#elevation { height: 220px; }
+.leaflet-container { background: #11141a; }

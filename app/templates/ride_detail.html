@@ -1,12 +1,27 @@
 {% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="/static/vendor/uplot.min.css">
+{% endblock %}
 {% block content %}
-<h1>{{ ride.title }}</h1>
-<p style="color:var(--muted)">
-  {{ ride.start_region or "Unknown region" }}
-  {% if ride.start_time %}· {{ ride.start_time.strftime('%b %-d, %Y') }}{% endif %}
-  · {{ ride.visibility }}
-  {% if ride.bike %}· {{ ride.bike.label }}{% endif %}
-</p>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem">
+  <div>
+    <h1 style="margin-bottom:.25rem">{{ ride.title }}</h1>
+    <p style="color:var(--muted);margin-top:0">
+      {{ ride.start_region or "Unknown region" }}
+      {% if ride.start_time %}· {{ ride.start_time.strftime('%b %-d, %Y') }}{% endif %}
+      · {{ ride.visibility }}
+      {% if ride.bike %}· {{ ride.bike.label }}{% endif %}
+    </p>
+  </div>
+  <div style="white-space:nowrap">
+    {% if not ride.published %}<a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>{% endif %}
+  </div>
+</div>
+
+{% if ride.processing_status == "done" %}
+  <div id="map" data-ride-id="{{ ride.id }}"></div>
+{% endif %}
 
 <div class="stat-bar card">
   <div><span>Distance</span><strong>{{ ride.distance_m | distance(user.unit_distance) }}</strong></div>
@@ -17,7 +32,8 @@
   <div>
     <span>Weather</span>
     {% if ride.weather and ride.weather.status == "ok" %}
-      <strong>{{ ride.weather.sky or "—" }}, {{ ride.weather.temp_c | temp(user.unit_temp) }}</strong>
+      <strong>{{ ride.weather.sky or "—" }}, {{ ride.weather.temp_c | temp(user.unit_temp) }},
+        {{ fmt_wind(ride.weather.wind_speed, ride.weather.wind_dir, user.unit_distance) }}</strong>
     {% else %}
       <strong>Unavailable
         <button class="link-btn" hx-post="/rides/{{ ride.id }}/weather/retry">retry</button>
@@ -26,12 +42,36 @@
   </div>
 </div>
 
+{% if ride.processing_status == "done" %}
+  <div class="card"><div id="elevation" style="width:100%"></div></div>
+{% endif %}
+
 {% if ride.description_md %}
   <div class="card"><p>{{ ride.description_md }}</p></div>
 {% endif %}
 
 <div class="card" style="color:var(--muted)">
-  Map and elevation profile arrive in the next phase.
   <a href="/rides/{{ ride.id }}/gpx">Download original GPX</a>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if ride.processing_status == "done" %}
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/vendor/uplot.iife.min.js"></script>
+<script src="/static/js/map.js"></script>
+<script src="/static/js/elevation.js"></script>
+<script>
+  (function () {
+    const unit = "{{ user.unit_distance }}";
+    fetch("/rides/{{ ride.id }}/points.json")
+      .then((r) => r.json())
+      .then((data) => {
+        RideMap.init(data);
+        RideElevation.init(data, (i) => RideMap.showIndex(i), { unit: unit });
+      })
+      .catch((e) => console.error("ride load failed", e));
+  })();
+</script>
+{% endif %}
 {% endblock %}
