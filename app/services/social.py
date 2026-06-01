@@ -173,3 +173,22 @@ def visible_rides_clause(viewer_id: uuid.UUID | None, owner_id: uuid.UUID, frien
     if viewer_id is not None and owner_id in friend_id_set:
         allowed.append(Ride.visibility == VISIBILITY_FRIENDS)
     return and_(Ride.user_id == owner_id, Ride.published.is_(True), or_(*allowed))
+
+
+def discoverable_clause(viewer_id: uuid.UUID | None, friend_id_set: set):
+    """Global visibility clause (across all owners) for discovery queries:
+    published rides that are public, the viewer's own, or a friend's friends-only."""
+    from app.models.ride import STATUS_DONE, STATUS_DUPLICATE
+
+    allowed = [Ride.visibility == VISIBILITY_PUBLIC]
+    if viewer_id is not None:
+        allowed.append(Ride.user_id == viewer_id)
+        if friend_id_set:
+            allowed.append(
+                and_(Ride.visibility == VISIBILITY_FRIENDS, Ride.user_id.in_(friend_id_set))
+            )
+    return and_(
+        Ride.published.is_(True),
+        Ride.processing_status.in_([STATUS_DONE, STATUS_DUPLICATE]),
+        or_(*allowed),
+    )

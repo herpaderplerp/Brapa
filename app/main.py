@@ -9,7 +9,17 @@ from app.auth.deps import SESSION_USER_KEY, _NotAuthenticated
 from app.config import settings
 from app.db import SessionLocal
 from app.models.user import User
-from app.routers import auth, compare, feed, friends, garage, notifications, profile, rides
+from app.routers import (
+    auth,
+    compare,
+    discover,
+    feed,
+    friends,
+    garage,
+    notifications,
+    profile,
+    rides,
+)
 from app.services import notify as notify_svc
 from app.templating import BASE_DIR, templates
 
@@ -55,6 +65,7 @@ app.include_router(friends.router)
 app.include_router(feed.router)
 app.include_router(notifications.router)
 app.include_router(compare.router)
+app.include_router(discover.router)
 
 
 @app.get("/healthz")

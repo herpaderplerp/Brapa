@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Popular routes</h1>
+<p style="color:var(--muted)">Most-engaged public rides{% if q %} near “{{ q }}”{% endif %}.</p>
+
+<form method="get" action="/popular" class="card feed-filters">
+  <input name="q" value="{{ q }}" placeholder="Filter by place (optional)" style="flex:2">
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+{% if not cards %}
+  <div class="card" style="color:var(--muted)">No public rides yet.</div>
+{% endif %}
+{% for ride, likes, comments in cards %}
+  <a class="card ride-row" href="/rides/{{ ride.id }}">
+    <div style="flex:1;min-width:0">
+      <strong>{{ ride.title or "Ride" }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">
+        {% if ride.start_time %}{{ ride.start_time.strftime('%b %-d, %Y') }} · {% endif %}
+        {{ ride.start_region or "—" }} · {{ ride.distance_m | distance(user.unit_distance) }}
+      </div>
+    </div>
+    <span style="color:var(--muted);font-size:.85rem">♥ {{ likes }} · 💬 {{ comments }}</span>
+  </a>
+{% endfor %}
+
+{% if page > 1 or has_next %}
+  <div class="bike-actions" style="justify-content:space-between">
+    {% if page > 1 %}<a class="link-btn" href="/popular?page={{ page - 1 }}&q={{ q }}">← Prev</a>{% else %}<span></span>{% endif %}
+    {% if has_next %}<a class="link-btn" href="/popular?page={{ page + 1 }}&q={{ q }}">More →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

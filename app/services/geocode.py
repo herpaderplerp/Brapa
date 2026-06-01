@@ -38,3 +38,33 @@ async def reverse_region(lat: float, lon: float) -> str | None:
     if parts:
         return ", ".join(parts)
     return data.get("display_name")
+
+
+async def search(query: str) -> tuple[float, float, tuple[float, float, float, float]] | None:
+    """Forward geocode a place name. Returns (lat, lon, bbox) where
+    bbox = (min_lon, min_lat, max_lon, max_lat), or None on failure."""
+    query = (query or "").strip()
+    if not query:
+        return None
+    params = {"q": query, "format": "json", "limit": "1"}
+    headers = {"User-Agent": "Brapa/0.1 (ride discovery)"}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"{settings.nominatim_base}/search", params=params, headers=headers
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        return None
+    if not data:
+        return None
+    top = data[0]
+    try:
+        lat = float(top["lat"])
+        lon = float(top["lon"])
+        # Nominatim boundingbox = [south, north, west, east] (strings).
+        south, north, west, east = (float(x) for x in top["boundingbox"])
+        return lat, lon, (west, south, east, north)
+    except (KeyError, ValueError, TypeError):
+        return None

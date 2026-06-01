@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+{% endblock %}
+{% block content %}
+<h1>Discover rides</h1>
+<p style="color:var(--muted)">Find public rides through a place. Or pan the map and search its bounds.</p>
+
+<form method="get" action="/discover" class="card feed-filters" x-data
+      x-ref="f">
+  <input name="q" value="{{ q }}" placeholder="Place name, e.g. Ottawa" style="flex:2">
+  <input type="hidden" name="bbox" x-ref="bbox">
+  <button class="btn" type="submit">Search</button>
+  {% if searched %}
+    <button class="link-btn" type="button" id="search-here">Search this map area</button>
+  {% endif %}
+</form>
+
+{% if searched %}
+  <div id="map"></div>
+{% endif %}
+
+{% if searched and not rides %}
+  <div class="card" style="color:var(--muted)">No public rides found in this area.</div>
+{% endif %}
+{% for r in rides %}
+  <a class="card ride-row" href="/rides/{{ r.id }}">
+    <div style="flex:1;min-width:0">
+      <strong>{{ r.title or "Ride" }}</strong>
+      <div style="color:var(--muted);font-size:.85rem">
+        {% if r.start_time %}{{ r.start_time.strftime('%b %-d, %Y') }} · {% endif %}
+        {{ r.start_region or "—" }} · {{ r.distance_m | distance(user.unit_distance) }}
+      </div>
+    </div>
+    <span class="tag tag-default">{{ r.visibility }}</span>
+  </a>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{% if searched %}
+<script>
+  window.__discover = {
+    markers: {{ markers | tojson }},
+    bbox: {{ bbox | tojson }},
+    center: {{ center | tojson }}
+  };
+</script>
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/js/discover.js"></script>
+{% endif %}
+{% endblock %}
