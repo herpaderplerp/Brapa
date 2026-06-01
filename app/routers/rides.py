@@ -1,3 +1,4 @@
+import io
 import uuid
 from typing import Annotated
 
@@ -18,6 +19,7 @@ from fastapi.responses import (
     RedirectResponse,
     Response,
 )
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -299,6 +301,35 @@ async def ride_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
 
 MAX_PHOTOS = 50
 PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+PHOTO_FORMATS = {
+    "JPEG": ("image/jpeg", "jpg"),
+    "PNG": ("image/png", "png"),
+    "WEBP": ("image/webp", "webp"),
+    "HEIF": ("image/heic", "heic"),
+}
+PHOTO_MEDIA_TYPES = {ext: media_type for media_type, ext in PHOTO_FORMATS.values()}
+
+
+def _validated_photo_extension(data: bytes, content_type: str | None) -> str:
+    if content_type not in PHOTO_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported photo type")
+
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            image.verify()
+            image_format = image.format
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="Invalid photo image") from None
+
+    media_type_and_ext = PHOTO_FORMATS.get(image_format or "")
+    if media_type_and_ext is None or media_type_and_ext[0] != content_type:
+        raise HTTPException(status_code=400, detail="Unsupported photo type")
+    return media_type_and_ext[1]
+
+
+def _photo_media_type(blob_key: str) -> str:
+    ext = blob_key.rsplit(".", 1)[-1].lower()
+    return PHOTO_MEDIA_TYPES.get(ext, "application/octet-stream")
 
 
 @router.post("/{ride_id}/photos")
@@ -319,7 +350,7 @@ async def upload_photos(
         data = await f.read()
         if not data:
             continue
-        ext = (f.filename or "img.jpg").rsplit(".", 1)[-1]
+        ext = _validated_photo_extension(data, f.content_type)
         lat, lon, taken = exif.extract(data)
         key = storage.save_photo(data, ext)
         db.add(
@@ -336,7 +367,11 @@ async def photo_file(user: LoggedInUser, db: DB, ride_id: uuid.UUID, photo_id: u
     photo = await db.get(Photo, photo_id)
     if photo is None or photo.ride_id != ride_id:
         raise HTTPException(status_code=404, detail="Photo not found")
-    return FileResponse(storage.path_for(photo.blob_key))
+    return FileResponse(
+        storage.path_for(photo.blob_key),
+        media_type=_photo_media_type(photo.blob_key),
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.post("/{ride_id}/photos/{photo_id}/delete")

@@ -3,6 +3,7 @@ import io
 import httpx
 import pytest
 from PIL import Image
+from sqlalchemy import select
 
 from app.auth.deps import require_login
 from app.db import engine as global_engine
@@ -58,7 +59,9 @@ async def test_upload_and_list_photos(db, user):
                 ("files", ("geo.jpg", geo, "image/jpeg")),
                 ("files", ("plain.jpg", _plain_jpeg(), "image/jpeg")),
             ]
-            up = await c.post(f"/rides/{ride_id}/photos", files=files, follow_redirects=False)
+            up = await c.post(
+                f"/rides/{ride_id}/photos", files=files, follow_redirects=False
+            )
             assert up.status_code == 303
 
             pj = await c.get(f"/rides/{ride_id}/photos.json")
@@ -68,6 +71,79 @@ async def test_upload_and_list_photos(db, user):
             served = await c.get(file_url)
             assert served.status_code == 200
             assert served.headers["content-type"].startswith("image/")
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Photo).where(Photo.ride_id == ride_id))
+        await db.execute(delete(Ride).where(Ride.id == ride_id))
+        await db.commit()
+        await global_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_photo_upload_rejects_non_images(db, user):
+    ride = Ride(user_id=user.id, processing_status=STATUS_DONE, published=True)
+    db.add(ride)
+    await db.flush()
+    await db.commit()
+    ride_id = ride.id
+
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://x") as c:
+            files = [
+                ("files", ("payload.html", b"<script>alert(1)</script>", "text/html"))
+            ]
+            up = await c.post(
+                f"/rides/{ride_id}/photos", files=files, follow_redirects=False
+            )
+            assert up.status_code == 400
+
+            rows = (
+                (await db.execute(select(Photo).where(Photo.ride_id == ride_id)))
+                .scalars()
+                .all()
+            )
+            assert rows == []
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Photo).where(Photo.ride_id == ride_id))
+        await db.execute(delete(Ride).where(Ride.id == ride_id))
+        await db.commit()
+        await global_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_photo_upload_uses_verified_image_extension(db, user):
+    ride = Ride(user_id=user.id, processing_status=STATUS_DONE, published=True)
+    db.add(ride)
+    await db.flush()
+    await db.commit()
+    ride_id = ride.id
+
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://x") as c:
+            files = [("files", ("payload.html", _plain_jpeg(), "image/jpeg"))]
+            up = await c.post(
+                f"/rides/{ride_id}/photos", files=files, follow_redirects=False
+            )
+            assert up.status_code == 303
+
+            photo = (
+                await db.execute(select(Photo).where(Photo.ride_id == ride_id))
+            ).scalar_one()
+            assert photo.blob_key.endswith(".jpg")
+
+            served = await c.get(f"/rides/{ride_id}/photos/{photo.id}/file")
+            assert served.status_code == 200
+            assert served.headers["content-type"].startswith("image/jpeg")
+            assert served.headers["x-content-type-options"] == "nosniff"
     finally:
         app.dependency_overrides.clear()
         from sqlalchemy import delete
