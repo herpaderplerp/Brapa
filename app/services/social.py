@@ -63,16 +63,31 @@ async def send_request(
         if existing.status == FRIEND_PENDING and existing.requester_id == addressee_id:
             existing.status = FRIEND_ACCEPTED
             db.add(existing)
+            await _notify(db, recipient_id=addressee_id, type="friend_accept", actor_id=requester_id)
         return existing
     f = Friendship(requester_id=requester_id, addressee_id=addressee_id, status=FRIEND_PENDING)
     db.add(f)
     await db.flush()
+    await _notify(db, recipient_id=addressee_id, type="friend_request", actor_id=requester_id)
     return f
 
 
 async def accept(db: AsyncSession, friendship: Friendship) -> None:
     friendship.status = FRIEND_ACCEPTED
     db.add(friendship)
+    await _notify(
+        db,
+        recipient_id=friendship.requester_id,
+        type="friend_accept",
+        actor_id=friendship.addressee_id,
+    )
+
+
+async def _notify(db: AsyncSession, **kwargs) -> None:
+    # Local import avoids a module-load cycle (notify imports models only).
+    from app.services import notify
+
+    await notify.create(db, **kwargs)
 
 
 async def remove(db: AsyncSession, friendship: Friendship) -> None:

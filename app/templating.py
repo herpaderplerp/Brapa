@@ -9,8 +9,11 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def _user_context(request: Request) -> dict:
-    # request.state.user is populated by the load_user middleware (main.py).
-    return {"user": getattr(request.state, "user", None)}
+    # request.state.user / .unread are populated by the load_user middleware.
+    return {
+        "user": getattr(request.state, "user", None),
+        "unread": getattr(request.state, "unread", 0),
+    }
 
 
 templates = Jinja2Templates(

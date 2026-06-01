@@ -19,6 +19,7 @@
     {% with ride=ride, like_count=like_count, liked=liked %}
       {% include "partials/like_button.html" %}
     {% endwith %}
+    <a class="link-btn" href="/compare?a={{ ride.id }}">Compare</a>
     {% if is_owner %}
       {% if not ride.published %}
         <a class="link-btn" href="/rides/{{ ride.id }}/review">Edit &amp; publish</a>

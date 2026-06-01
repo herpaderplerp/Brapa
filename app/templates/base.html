@@ -22,6 +22,7 @@
         <a href="/friends">Friends</a>
         <a href="/users">Find</a>
         <a href="/rides/upload">Upload</a>
+        <a href="/notifications" class="bell">🔔{% if unread %}<span class="badge">{{ unread }}</span>{% endif %}</a>
         <a href="/me">{{ user.display_name or "Profile" }}</a>
         <a href="/logout">Log out</a>
       {% else %}

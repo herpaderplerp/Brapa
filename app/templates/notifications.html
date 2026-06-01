@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Notifications</h1>
+{% if not items %}
+  <div class="card" style="color:var(--muted)">Nothing yet.</div>
+{% endif %}
+{% for n in items %}
+  {% set who = (n.actor.display_name or "Someone") if n.actor else "Someone" %}
+  <div class="card ride-row {{ '' if n.read else 'unread' }}">
+    <div style="flex:1;min-width:0">
+      {% if n.type == "friend_request" %}
+        <a href="/users/{{ n.actor_id }}"><strong>{{ who }}</strong></a> sent you a friend request.
+      {% elif n.type == "friend_accept" %}
+        <a href="/users/{{ n.actor_id }}"><strong>{{ who }}</strong></a> accepted your friend request.
+      {% elif n.type == "like" %}
+        <a href="/users/{{ n.actor_id }}"><strong>{{ who }}</strong></a> liked your
+        <a href="/rides/{{ n.ride_id }}">ride</a>.
+      {% elif n.type == "comment" %}
+        <a href="/users/{{ n.actor_id }}"><strong>{{ who }}</strong></a> commented on your
+        <a href="/rides/{{ n.ride_id }}">ride</a>.
+      {% else %}
+        {{ who }} did something.
+      {% endif %}
+      <div style="color:var(--muted);font-size:.8rem">{{ n.created_at.strftime('%b %-d, %Y %H:%M') }}</div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

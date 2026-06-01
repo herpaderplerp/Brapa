@@ -9,7 +9,8 @@ from app.auth.deps import SESSION_USER_KEY, _NotAuthenticated
 from app.config import settings
 from app.db import SessionLocal
 from app.models.user import User
-from app.routers import auth, feed, friends, garage, profile, rides
+from app.routers import auth, compare, feed, friends, garage, notifications, profile, rides
+from app.services import notify as notify_svc
 from app.templating import BASE_DIR, templates
 
 app = FastAPI(title="Brapa")
@@ -22,12 +23,15 @@ async def load_user(request: Request, call_next):
     """Populate request.state.user from the session so templates can read it.
     Added before SessionMiddleware so it runs *inside* it (session is parsed)."""
     request.state.user = None
+    request.state.unread = 0
     raw = request.session.get(SESSION_USER_KEY)
     if raw:
         try:
             uid = uuid.UUID(raw)
             async with SessionLocal() as db:
                 request.state.user = await db.get(User, uid)
+                if request.state.user is not None:
+                    request.state.unread = await notify_svc.unread_count(db, uid)
         except (ValueError, TypeError):
             request.state.user = None
     return await call_next(request)
@@ -49,6 +53,8 @@ app.include_router(garage.router)
 app.include_router(rides.router)
 app.include_router(friends.router)
 app.include_router(feed.router)
+app.include_router(notifications.router)
+app.include_router(compare.router)
 
 
 @app.get("/healthz")

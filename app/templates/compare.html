@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+{% endblock %}
+{% block content %}
+<h1>Compare rides</h1>
+
+<form method="get" action="/compare" class="card feed-filters">
+  <select name="a">
+    <option value="">— Ride A —</option>
+    {% for r in options %}
+      <option value="{{ r.id }}" {{ 'selected' if ride_a and ride_a.id == r.id else '' }}>
+        {{ r.title or "Ride" }}{% if r.start_time %} · {{ r.start_time.strftime('%b %-d, %Y') }}{% endif %}
+      </option>
+    {% endfor %}
+  </select>
+  <select name="b">
+    <option value="">— Ride B —</option>
+    {% for r in options %}
+      <option value="{{ r.id }}" {{ 'selected' if ride_b and ride_b.id == r.id else '' }}>
+        {{ r.title or "Ride" }}{% if r.start_time %} · {{ r.start_time.strftime('%b %-d, %Y') }}{% endif %}
+      </option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Compare</button>
+</form>
+
+{% if ride_a and ride_b %}
+  <div id="map"></div>
+  <div class="compare-cols">
+    {% for r, tag, col in [(ride_a, "A", "#5aa9ff"), (ride_b, "B", "#ff5a36")] %}
+      <div class="card" style="flex:1">
+        <h3 style="margin-top:0"><span style="color:{{ col }}">⬤</span> {{ r.title or "Ride" }}</h3>
+        <div class="stat-bar">
+          <div><span>Distance</span><strong>{{ r.distance_m | distance(user.unit_distance) }}</strong></div>
+          <div><span>Moving</span><strong>{{ r.moving_time_s | duration }}</strong></div>
+          <div><span>Avg</span><strong>{{ r.avg_moving_speed | speed(user.unit_distance) }}</strong></div>
+          <div><span>Max</span><strong>{{ r.max_speed | speed(user.unit_distance) }}</strong></div>
+          <div><span>Elev gain</span><strong>{{ r.elev_gain | elev(user.unit_distance) }}</strong></div>
+        </div>
+        <a href="/rides/{{ r.id }}" style="font-size:.85rem">Open ride →</a>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="color:var(--muted)">Pick two rides to overlay their tracks.</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if ride_a and ride_b %}
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/js/map.js"></script>
+<script>
+  Promise.all([
+    fetch("/rides/{{ ride_a.id }}/points.json").then((r) => r.json()),
+    fetch("/rides/{{ ride_b.id }}/points.json").then((r) => r.json()),
+  ]).then(([a, b]) => RideMap.initCompare(a, b)).catch((e) => console.error(e));
+</script>
+{% endif %}
+{% endblock %}

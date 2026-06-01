@@ -36,6 +36,10 @@ async def onboarding_submit(
     unit_distance: Annotated[str, Form()] = "km",
     unit_temp: Annotated[str, Form()] = "C",
     discoverability: Annotated[str, Form()] = "everyone",
+    email_on_friend_request: Annotated[bool, Form()] = False,
+    email_on_friend_accept: Annotated[bool, Form()] = False,
+    email_on_like: Annotated[bool, Form()] = False,
+    email_on_comment: Annotated[bool, Form()] = False,
 ):
     user.display_name = display_name.strip()
     user.home_region = home_region.strip() or None
@@ -46,6 +50,10 @@ async def onboarding_submit(
     user.discoverability = (
         discoverability if discoverability in DISCOVER_CHOICES else DISCOVER_EVERYONE
     )
+    user.email_on_friend_request = email_on_friend_request
+    user.email_on_friend_accept = email_on_friend_accept
+    user.email_on_like = email_on_like
+    user.email_on_comment = email_on_comment
     db.add(user)
     return RedirectResponse("/me", status_code=303)
 

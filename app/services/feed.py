@@ -15,7 +15,7 @@ from app.models.ride import (
     Ride,
 )
 from app.models.social import Comment, Like
-from app.services import social
+from app.services import notify, social
 
 
 @dataclass
@@ -48,6 +48,12 @@ async def toggle_like(db: AsyncSession, ride_id: uuid.UUID, user_id: uuid.UUID) 
         await db.delete(existing)
         return False
     db.add(Like(ride_id=ride_id, user_id=user_id))
+    await db.flush()
+    ride = await db.get(Ride, ride_id)
+    if ride:
+        await notify.create(
+            db, recipient_id=ride.user_id, type="like", actor_id=user_id, ride_id=ride_id
+        )
     return True
 
 
@@ -85,6 +91,21 @@ async def add_comment(
     c = Comment(ride_id=ride_id, user_id=user_id, body=body[:2000], parent_id=parent_id)
     db.add(c)
     await db.flush()
+
+    # Notify the ride owner, and (for replies) the parent comment's author.
+    ride = await db.get(Ride, ride_id)
+    if ride:
+        await notify.create(
+            db, recipient_id=ride.user_id, type="comment",
+            actor_id=user_id, ride_id=ride_id, comment_id=c.id,
+        )
+    if parent_id:
+        parent = await db.get(Comment, parent_id)
+        if parent and parent.user_id not in (user_id, ride.user_id if ride else None):
+            await notify.create(
+                db, recipient_id=parent.user_id, type="comment",
+                actor_id=user_id, ride_id=ride_id, comment_id=c.id,
+            )
     return c
 
 

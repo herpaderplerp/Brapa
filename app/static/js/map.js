@@ -76,6 +76,38 @@
       }
     },
 
+    initCompare(dataA, dataB) {
+      const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap",
+      });
+      this.map = L.map("map", { layers: [street] });
+
+      const all = [];
+      const draw = (data, color, label) => {
+        const ll = (data.points || []).map((p) => [p.lat, p.lon]);
+        if (ll.length) {
+          L.polyline(ll, { color, weight: 4, opacity: 0.85 }).addTo(this.map);
+          all.push(...ll);
+        }
+        return label;
+      };
+      draw(dataA, "#5aa9ff", "A");
+      draw(dataB, "#ff5a36", "B");
+      if (all.length) this.map.fitBounds(all);
+      else this.map.setView([0, 0], 2);
+
+      const legend = L.control({ position: "topright" });
+      legend.onAdd = function () {
+        const div = L.DomUtil.create("div", "compare-legend");
+        div.innerHTML =
+          '<span style="color:#5aa9ff">⬤</span> Ride A&nbsp; ' +
+          '<span style="color:#ff5a36">⬤</span> Ride B';
+        return div;
+      };
+      legend.addTo(this.map);
+    },
+
     addPhotos(photos) {
       if (!this.map || !photos) return;
       photos.forEach((p) => {

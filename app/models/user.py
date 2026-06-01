@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +26,11 @@ class User(Base):
     unit_distance: Mapped[str] = mapped_column(String(2), default="km")
     unit_temp: Mapped[str] = mapped_column(String(1), default="C")
     discoverability: Mapped[str] = mapped_column(String(10), default=DISCOVER_EVERYONE)
+    # Per-event email notification preferences (US-34).
+    email_on_friend_request: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_on_friend_accept: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_on_like: Mapped[bool] = mapped_column(Boolean, default=False)
+    email_on_comment: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

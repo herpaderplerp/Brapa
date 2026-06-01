@@ -106,3 +106,13 @@ fieldset legend { color: var(--muted); padding: 0 .4rem; }
 .comment { border-top: 1px solid var(--border); padding: .6rem 0; }
 .comment.reply { margin-left: 1.25rem; border-top: none; border-left: 2px solid var(--border); padding-left: .75rem; }
 .comment summary { cursor: pointer; display: inline; }
+.bell { position: relative; }
+.bell .badge {
+  position: absolute; top: -8px; right: -10px; background: var(--accent); color: #fff;
+  font-size: .65rem; font-weight: 700; min-width: 16px; height: 16px; line-height: 16px;
+  text-align: center; border-radius: 999px; padding: 0 4px;
+}
+.ride-row.unread { border-left: 3px solid var(--accent); }
+.compare-cols { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+.compare-legend { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+  padding: .3rem .5rem; font-size: .8rem; color: var(--fg); }
