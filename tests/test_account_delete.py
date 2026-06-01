@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import httpx
@@ -36,16 +37,57 @@ def _client():
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://x")
 
 
+async def _delete_csrf_token(client):
+    r = await client.get("/onboarding")
+    assert r.status_code == 200
+    match = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
+    assert match is not None
+    return match.group(1)
+
+
 @pytest.mark.asyncio
 async def test_delete_requires_confirm_word(db, user):
     u, ride_id, gpx_key, photo_key = await _seed(db)
     app.dependency_overrides[require_login] = lambda: u
     try:
         async with _client() as c:
-            r = await c.post("/account/delete", data={"confirm": "nope"}, follow_redirects=False)
+            csrf_token = await _delete_csrf_token(c)
+            r = await c.post(
+                "/account/delete",
+                data={"confirm": "nope", "csrf_token": csrf_token},
+                follow_redirects=False,
+            )
         assert r.status_code == 303
         # user still present
         assert await db.get(User, u.id) is not None
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Ride).where(Ride.id == ride_id))
+        await db.execute(delete(User).where(User.id == u.id))
+        await db.commit()
+        storage.delete(gpx_key)
+        storage.delete(photo_key)
+        await global_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_delete_requires_csrf_token(db, user):
+    u, ride_id, gpx_key, photo_key = await _seed(db)
+    app.dependency_overrides[require_login] = lambda: u
+    try:
+        async with _client() as c:
+            r = await c.post(
+                "/account/delete",
+                data={"confirm": "confirm"},
+                follow_redirects=False,
+            )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/onboarding?confirm=bad"
+        assert await db.get(User, u.id) is not None
+        assert storage.path_for(gpx_key).exists()
+        assert storage.path_for(photo_key).exists()
     finally:
         app.dependency_overrides.clear()
         from sqlalchemy import delete
@@ -66,7 +108,12 @@ async def test_delete_cascades_and_purges_blobs(db, user):
     app.dependency_overrides[require_login] = lambda: u
     try:
         async with _client() as c:
-            r = await c.post("/account/delete", data={"confirm": "Confirm"}, follow_redirects=False)
+            csrf_token = await _delete_csrf_token(c)
+            r = await c.post(
+                "/account/delete",
+                data={"confirm": "Confirm", "csrf_token": csrf_token},
+                follow_redirects=False,
+            )
         assert r.status_code == 303
         assert r.headers["location"] == "/"
         # Drop stale identity-map copies so gets hit the DB.

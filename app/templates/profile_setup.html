@@ -80,6 +80,7 @@
 
   <form method="post" action="/account/delete" x-show="open" x-cloak x-ref="f"
         @submit="if(!ok){ $event.preventDefault(); }">
+    <input type="hidden" name="csrf_token" value="{{ account_delete_csrf_token }}">
     <label for="confirm">Type <code>confirm</code> to enable deletion</label>
     <input id="confirm" name="confirm" autocomplete="off" placeholder="confirm"
            x-on:input="ok = ($event.target.value.trim().toLowerCase() === 'confirm')">

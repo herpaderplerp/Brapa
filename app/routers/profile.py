@@ -1,3 +1,5 @@
+import hmac
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -17,11 +19,36 @@ from app.templating import templates
 
 router = APIRouter()
 
+ACCOUNT_DELETE_CSRF_KEY = "account_delete_csrf_token"
+
+
+def _account_delete_csrf_token(request: Request) -> str:
+    token = request.session.get(ACCOUNT_DELETE_CSRF_KEY)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session[ACCOUNT_DELETE_CSRF_KEY] = token
+    return token
+
+
+def _valid_account_delete_csrf(request: Request, submitted: str) -> bool:
+    token = request.session.get(ACCOUNT_DELETE_CSRF_KEY)
+    return bool(
+        token
+        and submitted
+        and hmac.compare_digest(str(token), submitted)
+    )
+
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: LoggedInUser):
     return templates.TemplateResponse(
-        request, "profile_setup.html", {"title": "Set up your profile", "u": user}
+        request,
+        "profile_setup.html",
+        {
+            "title": "Set up your profile",
+            "u": user,
+            "account_delete_csrf_token": _account_delete_csrf_token(request),
+        },
     )
 
 
@@ -64,7 +91,11 @@ async def delete_account(
     user: LoggedInUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     confirm: Annotated[str, Form()] = "",
+    csrf_token: Annotated[str, Form()] = "",
 ):
+    if not _valid_account_delete_csrf(request, csrf_token):
+        return RedirectResponse("/onboarding?confirm=bad", status_code=303)
+
     # Require the literal word "confirm" (server-side guard, not just the UI).
     if confirm.strip().lower() != "confirm":
         return RedirectResponse("/onboarding?confirm=bad", status_code=303)
@@ -86,6 +117,7 @@ async def delete_account(
         storage.delete(k)
 
     request.session.pop(SESSION_USER_KEY, None)
+    request.session.pop(ACCOUNT_DELETE_CSRF_KEY, None)
     return RedirectResponse("/", status_code=303)
 
 
