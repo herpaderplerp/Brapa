@@ -7,6 +7,7 @@
   --border: #262b35;
 }
 * { box-sizing: border-box; }
+[x-cloak] { display: none !important; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
