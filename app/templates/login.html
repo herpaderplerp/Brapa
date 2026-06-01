@@ -5,7 +5,8 @@
   {% if providers %}
     <p style="color:var(--muted)">Sign in with your account — no password to manage.</p>
     {% for p in providers %}
-      <a class="btn" style="display:block;margin-top:1rem" href="/login/{{ p }}">
+      <a class="btn" style="display:block;margin-top:1rem" href="/login/{{ p }}"
+         hx-boost="false" data-no-boost>
         Continue with {{ p|capitalize }}
       </a>
     {% endfor %}
