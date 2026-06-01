@@ -49,7 +49,11 @@ async def load_user(request: Request, call_next):
 
 # SessionMiddleware added last => outermost => runs first, so request.session is
 # ready by the time load_user runs.
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, https_only=False)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    https_only=settings.session_https_only,
+)
 
 
 @app.exception_handler(_NotAuthenticated)
