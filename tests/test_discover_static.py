@@ -1,9 +1,13 @@
 import json
+import shutil
 import subprocess
 import textwrap
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 def test_discover_marker_popup_uses_dom_text_content():
     payload = '</a><img src=x onerror="globalThis.__xss=1">'
     script = f"""
