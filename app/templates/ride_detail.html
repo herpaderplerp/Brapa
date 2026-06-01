@@ -23,7 +23,7 @@
   </div>
 </div>
 
-{% if ride.processing_status == "done" %}
+{% if ride.processing_status in ("done", "duplicate") %}
   <div id="map" data-ride-id="{{ ride.id }}"></div>
 {% endif %}
 
@@ -46,7 +46,7 @@
   </div>
 </div>
 
-{% if ride.processing_status == "done" %}
+{% if ride.processing_status in ("done", "duplicate") %}
   <div class="card"><div id="elevation" style="width:100%"></div></div>
 {% endif %}
 
@@ -90,7 +90,7 @@
 {% endblock %}
 
 {% block scripts %}
-{% if ride.processing_status == "done" %}
+{% if ride.processing_status in ("done", "duplicate") %}
 <script src="/static/vendor/leaflet.js"></script>
 <script src="/static/vendor/uplot.iife.min.js"></script>
 <script src="/static/js/map.js"></script>
