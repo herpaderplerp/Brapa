@@ -10,6 +10,21 @@ Postgres/PostGIS via SQLAlchemy 2.0 + GeoAlchemy2 + Alembic. Containerized with 
 
 Full spec: `brapa_spec.md`. Implementation plan: `~/.claude/plans/quizzical-brewing-parnas.md`.
 
+## Where to develop
+
+**Do dev on the remote box whenever possible:** `ssh devbuntu.local -l user`,
+project at `~/brapa`. It's native amd64 (no libkrun emulation), has podman +
+podman-compose, a `.venv`, and git push/pull wired to GitHub — builds, the
+postgis container, and tests are all fast there. The macOS host runs Podman
+under libkrun (emulated amd64 postgis, slow first boot, `podman compose` can't
+reach the Docker API socket — native `podman` fallback only). Prefer the remote
+for build/run/test; use the Mac mainly for editing + committing.
+
+Remote loop: `cd ~/brapa && make up && make migrate && make test` (then
+`make logs`). Keep both in sync via GitHub (`git push` from Mac, `git pull` on
+remote). `make test` there is self-contained (bind-mounts the repo, installs
+dev extras, skips the node test if node is absent).
+
 ## Commands
 
 Everything runs inside the app container against the `db` service — there is no
@@ -84,3 +99,11 @@ configurable via env.
 - pytest `asyncio_mode = auto` (no `@pytest.mark.asyncio` needed).
 - Status/visibility are module-level string constants in app/models/ride.py — import them, don't inline literals.
 - Secrets/config via pydantic-settings `.env`; never hardcode. `.env` is gitignored, `.env.example` is the template.
+
+## Git Workflow
+
+- Pause and let me review the full changeset before creating any commit; do not commit working tree changes automatically.
+
+## Testing
+
+- After implementing features or fixes, run the build and test suite and confirm they pass before reporting completion.
