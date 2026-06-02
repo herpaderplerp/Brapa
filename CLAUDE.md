@@ -24,10 +24,15 @@ Iteration loop (preferred): **edit on Mac → `make sync` → run on remote.**
 `make sync` rsyncs the working tree (incl. uncommitted changes) to
 `user@devbuntu.local:brapa/`, mirroring files but never touching the remote
 `.git` or `.venv`. Then on the remote: `make test` / `make up` / `make logs`.
-Commit + `git push` to GitHub only at checkpoints — not every tweak. (GitHub
-`git pull` on remote also works but `make sync` avoids the commit churn.)
+Commit + `git push` to GitHub only at checkpoints — not every tweak.
 `make test` there is self-contained (bind-mounts the repo, installs dev extras,
 skips the node test if node is absent).
+
+At a checkpoint: commit + `git push` on the Mac, then reconcile the remote HEAD
+with `git fetch origin && git reset --hard origin/main` — **not** `git pull`.
+The Mac is the only source of truth and `make sync` has already mirrored the
+files, so a hard reset just advances HEAD; `git pull` instead errors because the
+rsync'd working-tree copies look like uncommitted local changes.
 
 **Testing Google login against the remote app:** SSH local port-forward, then
 browse `http://localhost:8000` on the Mac:
