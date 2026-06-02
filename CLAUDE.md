@@ -12,30 +12,21 @@ Full spec: `brapa_spec.md`. Implementation plan: `~/.claude/plans/quizzical-brew
 
 ## Where to develop
 
-**Do dev on the remote box whenever possible:** `ssh devbuntu.local -l user`,
-project at `~/brapa`. It's native amd64 (no libkrun emulation), has podman +
-podman-compose, a `.venv`, and git push/pull wired to GitHub — builds, the
-postgis container, and tests are all fast there. The macOS host runs Podman
-under libkrun (emulated amd64 postgis, slow first boot, `podman compose` can't
-reach the Docker API socket — native `podman` fallback only). Prefer the remote
-for build/run/test; use the Mac mainly for editing + committing.
+**Develop directly on `devbuntu` (`~/brapa`).** This is the native-amd64 build
+box: podman + podman-compose, a `.venv`, and git push/pull wired to GitHub —
+builds, the postgis container, and tests are all fast here. Edit in place, run
+`make test` / `make up` / `make logs`, and commit + `git push` straight from
+this repo with an ordinary git workflow (no rsync, no HEAD reconcile dance).
+`make test` is self-contained (bind-mounts the repo, installs dev extras, skips
+the node test if node is absent).
 
-Iteration loop (preferred): **edit on Mac → `make sync` → run on remote.**
-`make sync` rsyncs the working tree (incl. uncommitted changes) to
-`user@devbuntu.local:brapa/`, mirroring files but never touching the remote
-`.git` or `.venv`. Then on the remote: `make test` / `make up` / `make logs`.
-Commit + `git push` to GitHub only at checkpoints — not every tweak.
-`make test` there is self-contained (bind-mounts the repo, installs dev extras,
-skips the node test if node is absent).
+(Historical note: this repo used to be driven from a macOS host that ran Podman
+under libkrun — emulated amd64 postgis, slow first boot, `podman compose`
+couldn't reach the Docker API socket — via an `edit-on-Mac → make sync → run-on-
+remote` loop. That loop is retired; the `make sync` target has been dropped.)
 
-At a checkpoint: commit + `git push` on the Mac, then reconcile the remote HEAD
-with `git fetch origin && git reset --hard origin/main` — **not** `git pull`.
-The Mac is the only source of truth and `make sync` has already mirrored the
-files, so a hard reset just advances HEAD; `git pull` instead errors because the
-rsync'd working-tree copies look like uncommitted local changes.
-
-**Testing Google login against the remote app:** SSH local port-forward, then
-browse `http://localhost:8000` on the Mac:
+**Testing Google login against the app:** from the laptop with the browser, SSH
+local port-forward, then browse `http://localhost:8000`:
 
 ```sh
 ssh -L 8000:localhost:8000 devbuntu.local -l user
@@ -44,7 +35,7 @@ ssh -L 8000:localhost:8000 devbuntu.local -l user
 Works with zero config because the app's `BASE_URL=http://localhost:8000`
 builds a `localhost` `redirect_uri` that's already authorized in Google Console,
 and Google permits `localhost` over plain HTTP. Browsing `devbuntu.local:8000`
-directly fails — the callback lands on the Mac's localhost and the URI isn't
+directly fails — the callback lands on the client's localhost and the URI isn't
 registered. (Confirmed working.)
 
 ## Commands
