@@ -55,6 +55,11 @@
         this.map.setView([0, 0], 2);
       }
 
+      // The container can be laid out (flex/CSS, boosted nav) after init, leaving
+      // Leaflet with a stale size and scattered tiles. Recompute + refit once the
+      // browser has settled so the first load matches a manual refresh.
+      this._fixSize();
+
       this.marker = L.circleMarker([0, 0], {
         radius: 6,
         color: "#fff",
@@ -62,6 +67,17 @@
         fillColor: "#ff5a36",
         fillOpacity: 1,
       });
+    },
+
+    _fixSize() {
+      const refit = () => {
+        if (!this.map) return;
+        this.map.invalidateSize();
+        if (this.latlngs && this.latlngs.length) this.map.fitBounds(this.latlngs);
+      };
+      requestAnimationFrame(refit);
+      setTimeout(refit, 200);
+      window.addEventListener("load", refit, { once: true });
     },
 
     showIndex(i) {
@@ -94,8 +110,10 @@
       };
       draw(dataA, "#5aa9ff", "A");
       draw(dataB, "#ff5a36", "B");
+      this.latlngs = all;
       if (all.length) this.map.fitBounds(all);
       else this.map.setView([0, 0], 2);
+      this._fixSize();
 
       const legend = L.control({ position: "topright" });
       legend.onAdd = function () {
