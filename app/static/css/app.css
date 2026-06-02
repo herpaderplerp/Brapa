@@ -116,3 +116,10 @@ fieldset legend { color: var(--muted); padding: 0 .4rem; }
 .compare-cols { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
 .compare-legend { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
   padding: .3rem .5rem; font-size: .8rem; color: var(--fg); }
+.site-footer { max-width: 1100px; margin: 2rem auto 1rem; padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border); display: flex; gap: 1.25rem;
+  color: var(--muted); font-size: .85rem; }
+.legal { max-width: 760px; margin: 0 auto; line-height: 1.6; }
+.legal h2 { margin-top: 1.75rem; }
+.legal-meta { color: var(--muted); font-size: .85rem; }
+.legal ul { padding-left: 1.2rem; }

@@ -16,6 +16,7 @@ from app.routers import (
     feed,
     friends,
     garage,
+    legal,
     notifications,
     profile,
     rides,
@@ -70,6 +71,7 @@ app.include_router(feed.router)
 app.include_router(notifications.router)
 app.include_router(compare.router)
 app.include_router(discover.router)
+app.include_router(legal.router)
 
 
 @app.get("/healthz")
