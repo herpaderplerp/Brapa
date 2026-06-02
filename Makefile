@@ -1,15 +1,4 @@
-.PHONY: build up down logs migrate revision test shell fmt vendor sync
-
-# Push the working tree to the remote dev box (run on the Mac). Mirrors files but
-# never touches the remote .git or .venv. Commit to GitHub only at checkpoints.
-REMOTE ?= user@devbuntu.local:brapa/
-sync:
-	rsync -az --delete-after \
-	  --exclude '.git/' --exclude '.venv' --exclude 'var/' --exclude '__pycache__/' \
-	  --exclude '.pytest_cache/' --exclude '.ruff_cache/' --exclude '.mypy_cache/' \
-	  --exclude '*.pyc' --exclude '*.egg-info/' --exclude 'dist/' --exclude 'build/' \
-	  ./ $(REMOTE)
-	@echo "synced -> $(REMOTE)"
+.PHONY: build up down logs migrate revision test shell fmt vendor
 
 build:
 	podman compose build
