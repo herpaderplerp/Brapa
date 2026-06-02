@@ -25,6 +25,19 @@ Remote loop: `cd ~/brapa && make up && make migrate && make test` (then
 remote). `make test` there is self-contained (bind-mounts the repo, installs
 dev extras, skips the node test if node is absent).
 
+**Testing Google login against the remote app:** SSH local port-forward, then
+browse `http://localhost:8000` on the Mac:
+
+```sh
+ssh -L 8000:localhost:8000 devbuntu.local -l user
+```
+
+Works with zero config because the app's `BASE_URL=http://localhost:8000`
+builds a `localhost` `redirect_uri` that's already authorized in Google Console,
+and Google permits `localhost` over plain HTTP. Browsing `devbuntu.local:8000`
+directly fails — the callback lands on the Mac's localhost and the URI isn't
+registered. (Confirmed working.)
+
 ## Commands
 
 Everything runs inside the app container against the `db` service — there is no
