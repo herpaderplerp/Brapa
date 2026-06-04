@@ -1,7 +1,9 @@
 # Podman-compatible (OCI Compose). `podman compose up` reads this unchanged.
 services:
   db:
-    image: docker.io/postgis/postgis:16-3.4
+    # Multi-arch (amd64 + arm64) mirror of postgis/postgis tags; official image
+    # is amd64-only, which forces slow qemu emulation on arm64 hosts (Pi).
+    image: docker.io/imresamu/postgis:16-3.4
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-brapa}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brapa}
