@@ -154,6 +154,104 @@
       };
       this.map.on("click", handler);
     },
+
+    // --- Highlight sections -------------------------------------------------
+    // Index of the rendered point nearest a clicked latlng (squared-degree
+    // distance is fine at the local scale the map shows).
+    _nearestIndex(latlng) {
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < this.latlngs.length; i++) {
+        const dy = this.latlngs[i][0] - latlng.lat;
+        const dx = this.latlngs[i][1] - latlng.lng;
+        const d = dy * dy + dx * dx;
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return best;
+    },
+
+    // Arm a two-click pick: first click = start, second = end. Fills the hidden
+    // section form, draws the highlight, and reveals the name input.
+    startAddSection() {
+      if (!this.map) return;
+      this.resetSectionForm();
+      this._sectionPicks = [];
+      this._sectionMarkers = [];
+      const form = document.getElementById("section-form");
+      const hint = document.getElementById("section-hint");
+      const nameRow = document.getElementById("section-name-row");
+      if (form) form.hidden = false;
+      if (nameRow) nameRow.hidden = true;
+      if (hint) hint.textContent = "Click the start point of the section on the map.";
+
+      this._sectionHandler = (e) => {
+        const idx = this._nearestIndex(e.latlng);
+        this._sectionPicks.push(idx);
+        const m = L.circleMarker(this.latlngs[idx], {
+          radius: 7, color: "#fff", weight: 2, fillColor: "#ffd60a", fillOpacity: 1,
+        }).addTo(this.map);
+        this._sectionMarkers.push(m);
+
+        if (this._sectionPicks.length === 1) {
+          if (hint) hint.textContent = "Now click the end point of the section.";
+          return;
+        }
+        this.map.off("click", this._sectionHandler);
+        this._sectionHandler = null;
+        const a = Math.min(this._sectionPicks[0], this._sectionPicks[1]);
+        const b = Math.max(this._sectionPicks[0], this._sectionPicks[1]);
+        this.highlightSection(a, b);
+        if (form) {
+          form.querySelector('input[name="start_seq"]').value = a;
+          form.querySelector('input[name="end_seq"]').value = b;
+        }
+        if (hint) hint.textContent = "Name this section, then save.";
+        if (nameRow) {
+          nameRow.hidden = false;
+          nameRow.querySelector('input[name="name"]').focus();
+        }
+      };
+      this.map.on("click", this._sectionHandler);
+    },
+
+    // Tear down an in-progress pick and hide/clear the form (also called after a
+    // successful save).
+    resetSectionForm() {
+      if (this._sectionHandler && this.map) this.map.off("click", this._sectionHandler);
+      this._sectionHandler = null;
+      (this._sectionMarkers || []).forEach((m) => this.map.removeLayer(m));
+      this._sectionMarkers = [];
+      this._sectionPicks = [];
+      this.clearHighlight();
+      const form = document.getElementById("section-form");
+      const nameRow = document.getElementById("section-name-row");
+      if (form) {
+        form.reset();
+        form.hidden = true;
+      }
+      if (nameRow) nameRow.hidden = true;
+    },
+
+    highlightSection(startSeq, endSeq) {
+      this.clearHighlight();
+      const slice = this.latlngs.slice(startSeq, endSeq + 1);
+      if (!this.map || !slice.length) return;
+      this._highlight = L.polyline(slice, { color: "#ffd60a", weight: 8, opacity: 0.9 }).addTo(
+        this.map
+      );
+      if (this._highlight.bringToFront) this._highlight.bringToFront();
+      this.map.fitBounds(slice);
+    },
+
+    clearHighlight() {
+      if (this._highlight && this.map) {
+        this.map.removeLayer(this._highlight);
+        this._highlight = null;
+      }
+    },
   };
 
   window.RideMap = RideMap;

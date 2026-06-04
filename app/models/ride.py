@@ -82,6 +82,10 @@ class Ride(Base):
         "Photo", back_populates="ride", cascade="all, delete-orphan",
         order_by="Photo.seq", lazy="selectin"
     )
+    sections = relationship(
+        "RideSection", back_populates="ride", cascade="all, delete-orphan",
+        order_by="RideSection.start_seq", lazy="selectin"
+    )
 
 
 class RidePoint(Base):

@@ -61,6 +61,33 @@
 
 {% if ride.processing_status in ("done", "duplicate") %}
   <div class="card"><div id="elevation" style="width:100%"></div></div>
+
+  <div class="card" id="sections">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">Sections</h2>
+      {% if is_owner %}
+      <button class="link-btn" type="button" onclick="RideMap.startAddSection()">Add highlight</button>
+      {% endif %}
+    </div>
+    {% if is_owner %}
+    <form id="section-form" hidden method="post"
+          hx-post="/rides/{{ ride.id }}/sections"
+          hx-target="#section-list" hx-swap="outerHTML" style="margin-top:.5rem">
+      <input type="hidden" name="start_seq" value="">
+      <input type="hidden" name="end_seq" value="">
+      <p id="section-hint" style="color:var(--accent);margin:.25rem 0"></p>
+      <div id="section-name-row" hidden style="display:flex;gap:.5rem;align-items:center">
+        <input type="text" name="name" maxlength="140" required placeholder="Name this section"
+               style="flex:1">
+        <button class="btn" type="submit">Save</button>
+        <button class="link-btn" type="button" onclick="RideMap.resetSectionForm()">Cancel</button>
+      </div>
+    </form>
+    {% endif %}
+    {% with sections = ride.sections %}
+      {% include "partials/section_list.html" %}
+    {% endwith %}
+  </div>
 {% endif %}
 
 {% if ride.description_md %}
@@ -162,6 +189,11 @@
           .catch(() => {});
       })
       .catch((e) => console.error("ride load failed", e));
+
+    // Hide + clear the add-section form once a save succeeds (htmx swaps the list).
+    document.getElementById("section-form")?.addEventListener("htmx:afterRequest", (e) => {
+      if (e.detail.successful) RideMap.resetSectionForm();
+    });
   })();
 </script>
 {% endif %}

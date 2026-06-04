@@ -39,6 +39,7 @@ from app.models.user import User
 from app.services import exif
 from app.services import feed as feed_svc
 from app.services import garage as garage_svc
+from app.services import sections as sections_svc
 from app.services import social
 from app.services import storage
 from app.services.processing import process_ride, retry_weather
@@ -297,6 +298,73 @@ async def ride_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
         for p in rows
     ]
     return JSONResponse({"points": points})
+
+
+def _points_payload(rows) -> dict:
+    return {
+        "points": [
+            {"lat": p.lat, "lon": p.lon, "elev": p.elev, "speed": p.speed, "t": p.t} for p in rows
+        ]
+    }
+
+
+@router.post("/{ride_id}/sections", response_class=HTMLResponse)
+async def create_section(
+    request: Request,
+    user: LoggedInUser,
+    db: DB,
+    ride_id: uuid.UUID,
+    name: Annotated[str, Form()],
+    start_seq: Annotated[int, Form()],
+    end_seq: Annotated[int, Form()],
+):
+    ride = await _owned_ride(db, user.id, ride_id)
+    try:
+        await sections_svc.create(db, ride.id, name, start_seq, end_seq)
+    except sections_svc.SectionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    await db.flush()
+    rows = await sections_svc.list_for_ride(db, ride.id)
+    return templates.TemplateResponse(
+        request,
+        "partials/section_list.html",
+        {"ride": ride, "sections": rows, "is_owner": True},
+    )
+
+
+@router.post("/{ride_id}/sections/{section_id}/delete")
+async def delete_section(user: LoggedInUser, db: DB, ride_id: uuid.UUID, section_id: uuid.UUID):
+    await _owned_ride(db, user.id, ride_id)
+    section = await sections_svc.get(db, ride_id, section_id)
+    if section is not None:
+        await db.delete(section)
+    return RedirectResponse(f"/rides/{ride_id}", status_code=303)
+
+
+@router.get("/{ride_id}/sections/{section_id}", response_class=HTMLResponse)
+async def section_detail(
+    request: Request, user: LoggedInUser, db: DB, ride_id: uuid.UUID, section_id: uuid.UUID
+):
+    ride = await _viewable_ride(db, user.id, ride_id)
+    section = await sections_svc.get(db, ride.id, section_id)
+    if section is None:
+        raise HTTPException(status_code=404, detail="Section not found")
+    stats = sections_svc.section_stats(await sections_svc.slice_points(db, section))
+    return templates.TemplateResponse(
+        request,
+        "section_detail.html",
+        {"title": section.name, "ride": ride, "section": section, "stats": stats},
+    )
+
+
+@router.get("/{ride_id}/sections/{section_id}/points.json")
+async def section_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID, section_id: uuid.UUID):
+    ride = await _viewable_ride(db, user.id, ride_id)
+    section = await sections_svc.get(db, ride.id, section_id)
+    if section is None:
+        raise HTTPException(status_code=404, detail="Section not found")
+    rows = await sections_svc.slice_points(db, section)
+    return JSONResponse(_points_payload(rows))
 
 
 MAX_PHOTOS = 50

@@ -1,0 +1,22 @@
+<ul id="section-list" style="list-style:none;padding:0;margin:.5rem 0 0">
+  {% if sections %}
+    {% for s in sections %}
+    <li style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+               padding:.4rem 0;border-bottom:1px solid var(--border)">
+      <button type="button" class="link-btn" title="Show on map"
+              onclick="RideMap.highlightSection({{ s.start_seq }}, {{ s.end_seq }})">{{ s.name }}</button>
+      <span style="display:flex;gap:.75rem;align-items:center;white-space:nowrap">
+        <a class="link-btn" href="/rides/{{ ride.id }}/sections/{{ s.id }}">Open ↗</a>
+        {% if is_owner %}
+        <form method="post" action="/rides/{{ ride.id }}/sections/{{ s.id }}/delete"
+              onsubmit="return confirm('Delete this section?')" style="display:inline">
+          <button class="link-btn danger" type="submit" title="Delete">✕</button>
+        </form>
+        {% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  {% else %}
+    <li style="color:var(--muted)">No sections yet.{% if is_owner %} Highlight an interesting stretch of this ride.{% endif %}</li>
+  {% endif %}
+</ul>

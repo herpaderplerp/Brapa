@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="/static/vendor/uplot.min.css">
+{% endblock %}
+{% block content %}
+<p style="margin-bottom:.25rem">
+  <a href="/rides/{{ ride.id }}">← Back to {{ ride.title or "ride" }}</a>
+</p>
+<h1 style="margin-top:0">{{ section.name }}</h1>
+<p style="color:var(--muted);margin-top:0">
+  A highlighted section of <a href="/rides/{{ ride.id }}">{{ ride.title or "this ride" }}</a>
+  {% if ride.start_region %}· {{ ride.start_region }}{% endif %}
+</p>
+
+<div id="map" data-ride-id="{{ ride.id }}"></div>
+
+<div class="stat-bar card">
+  <div><span>Distance</span><strong>{{ stats.distance_m | distance(user.unit_distance) }}</strong></div>
+  <div><span>Duration</span><strong>{{ stats.duration_s | duration }}</strong></div>
+  <div><span>Avg</span><strong>{{ stats.avg_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Max</span><strong>{{ stats.max_speed | speed(user.unit_distance) }}</strong></div>
+  <div><span>Elev gain</span><strong>{{ stats.elev_gain | elev(user.unit_distance) }}</strong></div>
+</div>
+
+<div class="card"><div id="elevation" style="width:100%"></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/vendor/uplot.iife.min.js"></script>
+<script src="/static/js/map.js"></script>
+<script src="/static/js/elevation.js"></script>
+<script>
+  (function () {
+    const unit = "{{ user.unit_distance }}";
+    fetch("/rides/{{ ride.id }}/sections/{{ section.id }}/points.json")
+      .then((r) => r.json())
+      .then((data) => {
+        RideMap.init(data);
+        RideElevation.init(data, (i) => RideMap.showIndex(i), { unit: unit });
+      })
+      .catch((e) => console.error("section load failed", e));
+  })();
+</script>
+{% endblock %}

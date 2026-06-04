@@ -1,0 +1,22 @@
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+  <div style="min-width:0;flex:1">
+    <form hx-post="/sections/{{ s.id }}/rename"
+          hx-target="#section-manage-list" hx-swap="outerHTML"
+          style="display:flex;gap:.5rem;align-items:center">
+      <input type="text" name="name" maxlength="140" required value="{{ s.name }}"
+             aria-label="Section name" style="flex:1;min-width:0">
+      <button class="btn" type="submit">Rename</button>
+    </form>
+    <p style="margin:.3rem 0 0;color:var(--muted)">
+      from <a href="/rides/{{ s.ride_id }}">{{ s.ride.title or "a ride" }}</a>
+      {% if s.ride.start_region %}· {{ s.ride.start_region }}{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center;white-space:nowrap">
+    <a class="link-btn" href="/rides/{{ s.ride_id }}/sections/{{ s.id }}">Open ↗</a>
+    <button class="link-btn danger" type="button"
+            hx-post="/sections/{{ s.id }}/delete"
+            hx-target="#section-manage-list" hx-swap="outerHTML"
+            hx-confirm="Delete this section?">Delete</button>
+  </div>
+</div>

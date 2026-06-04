@@ -1,0 +1,10 @@
+<div id="section-manage-list">
+  {% if not sections %}
+    <div class="card" style="color:var(--muted)">
+      No sections yet. Open a ride and highlight an interesting stretch to create one.
+    </div>
+  {% endif %}
+  {% for s in sections %}
+    {% include "partials/section_manage_row.html" %}
+  {% endfor %}
+</div>

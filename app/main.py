@@ -20,6 +20,7 @@ from app.routers import (
     notifications,
     profile,
     rides,
+    sections,
 )
 from app.services import notify as notify_svc
 from app.templating import BASE_DIR, templates
@@ -66,6 +67,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(garage.router)
 app.include_router(rides.router)
+app.include_router(sections.router)
 app.include_router(friends.router)
 app.include_router(feed.router)
 app.include_router(notifications.router)

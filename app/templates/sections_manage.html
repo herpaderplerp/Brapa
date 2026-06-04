@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Your sections</h1>
+<p style="color:var(--muted)">
+  Highlighted stretches across all your rides. Create one by opening a ride and
+  highlighting a section on the map.
+</p>
+
+{% include "partials/section_manage_list.html" %}
+{% endblock %}
