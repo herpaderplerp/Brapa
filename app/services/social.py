@@ -137,14 +137,16 @@ async def pending_outgoing(db: AsyncSession, user_id: uuid.UUID) -> list[Friends
 
 async def can_discover(db: AsyncSession, viewer_id: uuid.UUID, target) -> bool:
     """Whether viewer may find/open target's profile, per target.discoverability.
-    Existing friends always can; 'fof' needs a shared mutual friend; 'private' nobody."""
+    Existing friends and pending direct invites always can; 'fof' needs a shared mutual friend;
+    'private' nobody else."""
     from app.models.user import DISCOVER_EVERYONE, DISCOVER_FOF
 
     if viewer_id == target.id:
         return True
     if target.discoverability == DISCOVER_EVERYONE:
         return True
-    if await are_friends(db, viewer_id, target.id):
+    friendship = await friendship_between(db, viewer_id, target.id)
+    if friendship is not None and friendship.status in (FRIEND_ACCEPTED, FRIEND_PENDING):
         return True
     if target.discoverability == DISCOVER_FOF:
         mine = await friend_ids(db, viewer_id)

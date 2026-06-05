@@ -49,3 +49,15 @@ async def test_self_always_discoverable(db, user):
     user.discoverability = DISCOVER_PRIVATE
     await db.flush()
     assert await social.can_discover(db, user.id, user) is True
+
+
+@pytest.mark.asyncio
+async def test_private_visible_for_pending_direct_requests(db, user):
+    requester = await _user(db, DISCOVER_PRIVATE)
+    addressee = user
+    addressee.discoverability = DISCOVER_PRIVATE
+    await db.flush()
+    await social.send_request(db, requester.id, addressee.id)
+
+    assert await social.can_discover(db, addressee.id, requester) is True
+    assert await social.can_discover(db, requester.id, addressee) is True
