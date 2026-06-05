@@ -70,7 +70,8 @@ def test_pick_hour_exact_match_returns_ok():
     result = _pick_hour(_make_hourly(temp=22.0, code=0), when)
     assert result.status == "ok"
     assert result.sky == "clear"
-    assert result.temp_c == pytest.approx(22.0)
+    # _make_hourly produces temp + h*0.1, so index 10 → 22.0 + 1.0 = 23.0
+    assert result.temp_c == pytest.approx(23.0)
     assert result.wind_speed == 15.0
     assert result.humidity == 60.0
 
