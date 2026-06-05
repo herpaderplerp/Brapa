@@ -112,3 +112,38 @@ configurable via env.
 - pytest `asyncio_mode = auto` (no `@pytest.mark.asyncio` needed).
 - Status/visibility are module-level string constants in app/models/ride.py — import them, don't inline literals.
 - Secrets/config via pydantic-settings `.env`; never hardcode. `.env` is gitignored, `.env.example` is the template.
+
+## Frontend / map gotchas
+
+The Leaflet "map island" has bitten us more than once with the same two symptoms.
+If a map renders wrong, it's almost always one of these — check them before
+re-debugging from scratch.
+
+**Symptom A — map paints full-width at the top of the page, overlapping the
+header (instead of inside its card).** Cause: Leaflet's panes are
+`position:absolute`, and the vendored `leaflet.css` only sets `overflow:hidden`
+on `.leaflet-container` — no `position`. With no positioning context the panes
+anchor to the viewport. Fix: `#map { position: relative }` (in app.css). It's
+most visible when `#map` sits *below* other content (e.g. the privacy-zones page,
+where the map is under the "Your zones" list); on pages where `#map` is near the
+top the panes happen to line up and the bug hides.
+
+**Symptom B — map is the right place but oversized / mis-scaled until a manual
+refresh.** Cause: the container's real size (vh-based height, or laid out *after*
+init under `hx-boost`'s body-swap navigation) isn't known when `L.map()` runs, so
+Leaflet caches a stale/zero size. Fixes in use: `map.js` `_fixSize()`
+(invalidateSize via rAF + setTimeout + window load) for the fetch-driven ride/
+section maps; `zones.js` uses a **ResizeObserver** on `#map` calling
+`invalidateSize()` (more robust for a synchronously-initialised map below dynamic
+content). Any new synchronously-built map should do likewise.
+
+**Symptom C — a CSS/JS change "doesn't take" until a hard refresh (or looks fixed
+for you but not the user).** Cause: browsers cache `/static/*` across windows;
+`hx-boost` navigation won't re-fetch a cached script. This wasted real debugging
+time. Fix: reference static assets through the `static_url()` template global
+(app/templating.py), which appends the file's mtime as `?v=` so the URL changes
+whenever the file does. **Always use `{{ static_url('js/foo.js') }}`, never a bare
+`/static/...` path**, in templates — otherwise stale-cache bugs masquerade as code
+bugs. Static files and templates are bind-mounted (`./app`), so they serve live
+with no rebuild; only `.py` (uvicorn `--reload`) and migrations/Containerfile
+changes need anything more.
