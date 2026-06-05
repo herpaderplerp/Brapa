@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
-<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="{{ static_url('vendor/leaflet.css') }}">
 {% endblock %}
 {% block content %}
 <h1>Compare rides</h1>
@@ -49,8 +49,8 @@
 
 {% block scripts %}
 {% if ride_a and ride_b %}
-<script src="/static/vendor/leaflet.js"></script>
-<script src="/static/js/map.js"></script>
+<script src="{{ static_url('vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('js/map.js') }}"></script>
 <script>
   Promise.all([
     fetch("/rides/{{ ride_a.id }}/points.json").then((r) => r.json()),

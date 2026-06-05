@@ -1,0 +1,17 @@
+<div class="zone-list">
+  {% for z in zones %}
+    <div class="zone-row" style="display:flex;align-items:center;gap:.75rem;padding:.4rem 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <strong>{{ z.label }}</strong>
+        <div style="color:var(--muted);font-size:.85rem">
+          {{ "%.4f"|format(z.center_lat) }}, {{ "%.4f"|format(z.center_lon) }}
+          · {{ z.radius_m|int }} m radius
+        </div>
+      </div>
+      <form method="post" action="/privacy-zones/{{ z.id }}/delete"
+            onsubmit="return confirm('Delete this privacy zone?')">
+        <button class="link-btn danger" type="submit">Delete</button>
+      </form>
+    </div>
+  {% endfor %}
+</div>

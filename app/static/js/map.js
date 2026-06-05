@@ -14,6 +14,10 @@
 
     init(data) {
       const pts = data.points || [];
+      // Gap-aware: `segments` splits the track where privacy zones clipped it,
+      // so the polyline visibly stops at zone boundaries instead of bridging
+      // across. Owner / no-zones => a single segment of every point.
+      const segments = data.segments || (pts.length ? [pts] : []);
       this.latlngs = pts.map((p) => [p.lat, p.lon]);
 
       const street = L.tileLayer(
@@ -38,15 +42,18 @@
       const max = speeds.length ? Math.max(...speeds) : 1;
       const span = max - min || 1;
 
-      // Per-segment colored polylines (Leaflet has no native gradient line).
-      for (let i = 1; i < pts.length; i++) {
-        const s = pts[i].speed != null ? pts[i].speed : min;
-        const norm = (s - min) / span;
-        L.polyline([this.latlngs[i - 1], this.latlngs[i]], {
-          color: speedColor(norm),
-          weight: 4,
-          opacity: 0.9,
-        }).addTo(this.map);
+      // Per-point colored sub-polylines (Leaflet has no native gradient line),
+      // drawn within each segment so clipped gaps stay empty.
+      for (const seg of segments) {
+        for (let i = 1; i < seg.length; i++) {
+          const s = seg[i].speed != null ? seg[i].speed : min;
+          const norm = (s - min) / span;
+          L.polyline([[seg[i - 1].lat, seg[i - 1].lon], [seg[i].lat, seg[i].lon]], {
+            color: speedColor(norm),
+            weight: 4,
+            opacity: 0.9,
+          }).addTo(this.map);
+        }
       }
 
       if (this.latlngs.length) {
@@ -101,10 +108,14 @@
 
       const all = [];
       const draw = (data, color, label) => {
-        const ll = (data.points || []).map((p) => [p.lat, p.lon]);
-        if (ll.length) {
-          L.polyline(ll, { color, weight: 4, opacity: 0.85 }).addTo(this.map);
-          all.push(...ll);
+        const pts = data.points || [];
+        const segments = data.segments || (pts.length ? [pts] : []);
+        for (const seg of segments) {
+          const ll = seg.map((p) => [p.lat, p.lon]);
+          if (ll.length) {
+            L.polyline(ll, { color, weight: 4, opacity: 0.85 }).addTo(this.map);
+            all.push(...ll);
+          }
         }
         return label;
       };
