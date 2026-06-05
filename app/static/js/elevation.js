@@ -23,11 +23,22 @@
       }
       const imperial = (opts && opts.unit) === "mi";
 
+      // Indices where a new privacy-clipped segment begins; the distance across
+      // such a boundary is a hidden gap, so it isn't added to the cumulative.
+      const breaks = new Set();
+      if (data.segments) {
+        let acc = 0;
+        for (let s = 0; s < data.segments.length - 1; s++) {
+          acc += data.segments[s].length;
+          breaks.add(acc);
+        }
+      }
+
       // Cumulative distance for the x-axis.
       const xs = [];
       let cum = 0;
       for (let i = 0; i < pts.length; i++) {
-        if (i > 0) {
+        if (i > 0 && !breaks.has(i)) {
           cum += haversine([pts[i - 1].lat, pts[i - 1].lon], [pts[i].lat, pts[i].lon]);
         }
         xs.push(imperial ? cum / 1609.344 : cum / 1000);

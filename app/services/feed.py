@@ -118,10 +118,16 @@ async def ride_social(db: AsyncSession, ride_id: uuid.UUID, user_id: uuid.UUID):
 
 
 async def track_thumb(
-    db: AsyncSession, ride_id: uuid.UUID, w: int = 260, h: int = 120, pad: int = 8
+    db: AsyncSession, ride_id: uuid.UUID, w: int = 260, h: int = 120, pad: int = 8, zones=()
 ) -> str | None:
-    """Normalized SVG polyline points for a mini route thumbnail (keyless)."""
+    """Normalized SVG polyline points for a mini route thumbnail (keyless).
+
+    `zones` (the ride owner's privacy zones) drop any in-zone point so the
+    thumbnail can't trace the route through a hidden area. The thumbnail is a
+    single polyline, so a clipped track simply omits the hidden points.
+    """
     from app.models.ride import RidePoint
+    from app.services import privacy
 
     rows = (
         await db.execute(
@@ -130,6 +136,8 @@ async def track_thumb(
             .order_by(RidePoint.seq)
         )
     ).all()
+    if zones:
+        rows = [r for r in rows if not privacy.in_any_zone(r[0], r[1], list(zones))]
     if len(rows) < 2:
         return None
     # Sub-sample to at most ~120 points for a light SVG.

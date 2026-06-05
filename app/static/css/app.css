@@ -80,7 +80,10 @@ fieldset legend { color: var(--muted); padding: 0 .4rem; }
   text-decoration: none; transition: border-color .15s;
 }
 .ride-row:hover { border-color: var(--accent); }
-#map { height: 58vh; min-height: 360px; border-radius: 10px; margin-bottom: 1rem; }
+/* position:relative gives Leaflet's absolutely-positioned panes a containing
+   block; without it they anchor to the viewport and the map paints full-width
+   at the top of the page (most visible when #map sits below other content). */
+#map { position: relative; height: 58vh; min-height: 360px; border-radius: 10px; margin-bottom: 1rem; }
 #elevation { height: 220px; }
 .leaflet-container { background: #11141a; }
 .gallery { display: flex; flex-wrap: wrap; gap: .6rem; }

@@ -8,6 +8,7 @@ from app.auth.deps import LoggedInUser
 from app.db import get_db
 from app.services import discover as discover_svc
 from app.services import geocode
+from app.services import privacy as privacy_svc
 from app.templating import templates
 
 router = APIRouter()
@@ -25,17 +26,27 @@ def _parse_bbox(s: str):
     return (min_lon, min_lat, max_lon, max_lat)
 
 
-def _markers(rides):
-    return [
-        {
-            "lat": r.start_lat,
-            "lon": r.start_lon,
-            "title": r.title or "Ride",
-            "url": f"/rides/{r.id}",
-        }
-        for r in rides
-        if r.start_lat is not None and r.start_lon is not None
-    ]
+def _markers(rides, viewer_id, zmap):
+    """Start-point markers, dropping any whose start sits inside the owner's
+    privacy zone (so a home start isn't pinned). The viewer's own rides are
+    never filtered."""
+    out = []
+    for r in rides:
+        if r.start_lat is None or r.start_lon is None:
+            continue
+        if r.user_id != viewer_id and privacy_svc.in_any_zone(
+            r.start_lat, r.start_lon, zmap.get(r.user_id, [])
+        ):
+            continue
+        out.append(
+            {
+                "lat": r.start_lat,
+                "lon": r.start_lon,
+                "title": r.title or "Ride",
+                "url": f"/rides/{r.id}",
+            }
+        )
+    return out
 
 
 @router.get("/discover", response_class=HTMLResponse)
@@ -53,6 +64,7 @@ async def discover(request: Request, user: LoggedInUser, db: DB, q: str = "", bb
     if search_bbox is not None:
         rides = await discover_svc.rides_in_bbox(db, user.id, search_bbox)
 
+    zmap = await privacy_svc.zones_by_user(db, {r.user_id for r in rides})
     return templates.TemplateResponse(
         request,
         "discover.html",
@@ -60,7 +72,7 @@ async def discover(request: Request, user: LoggedInUser, db: DB, q: str = "", bb
             "title": "Discover",
             "q": q,
             "rides": rides,
-            "markers": _markers(rides),
+            "markers": _markers(rides, user.id, zmap),
             "bbox": search_bbox,
             "center": center,
             "searched": search_bbox is not None,

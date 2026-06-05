@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<p style="margin-bottom:.25rem"><a href="/onboarding">← Back to edit profile</a></p>
+<h1>Privacy zones</h1>
+<p style="color:var(--muted);max-width:48rem">
+  Hide the start, end, and any stretch of your rides that passes near a place —
+  like your home or work — from everyone but you. Inside a zone the map line,
+  elevation trace, geotagged photos, and downloaded GPX are all cut out. You
+  always see your own full track; this only changes what others see.
+</p>
+
+{% if zones %}
+<div class="card">
+  <h2 style="margin-top:0">Your zones</h2>
+  {% include "partials/zone_list.html" %}
+</div>
+{% endif %}
+
+{% if at_limit %}
+<div class="card" style="color:var(--muted)">
+  You've reached the limit of {{ max_zones }} zones. Delete one to add another.
+</div>
+{% else %}
+<div class="card">
+  <h2 style="margin-top:0">Add a zone</h2>
+  <p style="color:var(--muted);margin-top:0">
+    Click the map to set the centre, then drag the radius slider and save.
+  </p>
+  <div id="map"></div>
+
+  <form method="post" action="/privacy-zones" id="zone-form" style="margin-top:1rem"
+        x-data="{ picked: false }">
+    <input type="hidden" name="lat" id="zone-lat">
+    <input type="hidden" name="lon" id="zone-lon">
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+      <label style="flex:1;min-width:12rem">Label
+        <input type="text" name="label" maxlength="80" value="Home" style="width:100%">
+      </label>
+      <label style="flex:2;min-width:14rem">Radius: <span id="radius-out">{{ radius_default }}</span> m
+        <input type="range" name="radius_m" id="zone-radius"
+               min="{{ radius_min }}" max="{{ radius_max }}" step="10"
+               value="{{ radius_default }}" style="width:100%">
+      </label>
+      <button class="btn" type="submit" id="zone-save" disabled>Save zone</button>
+    </div>
+    <p id="zone-hint" style="color:var(--accent);margin:.5rem 0 0">Click the map to choose a centre.</p>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_url('vendor/leaflet.js') }}"></script>
+<script>
+  window.__existingZones = [
+    {% for z in zones %}
+      { lat: {{ z.center_lat }}, lon: {{ z.center_lon }}, r: {{ z.radius_m }}, label: {{ z.label | tojson }} },
+    {% endfor %}
+  ];
+</script>
+<script src="{{ static_url('js/zones.js') }}"></script>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
-<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="{{ static_url('vendor/leaflet.css') }}">
 {% endblock %}
 {% block content %}
 <h1>Discover rides</h1>
@@ -46,7 +46,7 @@
     center: {{ center | tojson }}
   };
 </script>
-<script src="/static/vendor/leaflet.js"></script>
-<script src="/static/js/discover.js"></script>
+<script src="{{ static_url('vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('js/discover.js') }}"></script>
 {% endif %}
 {% endblock %}

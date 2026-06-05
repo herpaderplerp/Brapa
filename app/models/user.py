@@ -38,6 +38,10 @@ class User(Base):
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    privacy_zones = relationship(
+        "PrivacyZone", back_populates="user", cascade="all, delete-orphan",
+        order_by="PrivacyZone.created_at",
+    )
 
     @property
     def is_onboarded(self) -> bool:

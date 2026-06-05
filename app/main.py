@@ -18,6 +18,7 @@ from app.routers import (
     garage,
     legal,
     notifications,
+    privacy,
     profile,
     rides,
     sections,
@@ -65,6 +66,7 @@ async def _not_authenticated_handler(request: Request, exc: _NotAuthenticated):
 
 app.include_router(auth.router)
 app.include_router(profile.router)
+app.include_router(privacy.router)
 app.include_router(garage.router)
 app.include_router(rides.router)
 app.include_router(sections.router)

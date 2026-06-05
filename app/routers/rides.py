@@ -39,6 +39,7 @@ from app.models.user import User
 from app.services import exif
 from app.services import feed as feed_svc
 from app.services import garage as garage_svc
+from app.services import privacy as privacy_svc
 from app.services import sections as sections_svc
 from app.services import social
 from app.services import storage
@@ -293,19 +294,22 @@ async def ride_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
             select(RidePoint).where(RidePoint.ride_id == ride.id).order_by(RidePoint.seq)
         )
     ).scalars().all()
-    points = [
-        {"lat": p.lat, "lon": p.lon, "elev": p.elev, "speed": p.speed, "t": p.t}
-        for p in rows
-    ]
-    return JSONResponse({"points": points})
+    zones = await privacy_svc.effective_zones(db, user.id, ride)
+    return JSONResponse(_points_payload(rows, zones))
 
 
-def _points_payload(rows) -> dict:
-    return {
-        "points": [
-            {"lat": p.lat, "lon": p.lon, "elev": p.elev, "speed": p.speed, "t": p.t} for p in rows
-        ]
-    }
+def _point_dict(p) -> dict:
+    return {"lat": p.lat, "lon": p.lon, "elev": p.elev, "speed": p.speed, "t": p.t}
+
+
+def _points_payload(rows, zones=()) -> dict:
+    """Gap-aware track payload. `segments` is the authoritative gap-split form
+    (privacy-clipped for non-owners); `points` is their flat concatenation, kept
+    for the elevation chart and marker indexing. With no zones it's one segment."""
+    segs = privacy_svc.clip_segments(rows, list(zones))
+    seg_json = [[_point_dict(p) for p in seg] for seg in segs]
+    flat = [pt for seg in seg_json for pt in seg]
+    return {"points": flat, "segments": seg_json}
 
 
 @router.post("/{ride_id}/sections", response_class=HTMLResponse)
@@ -349,7 +353,11 @@ async def section_detail(
     section = await sections_svc.get(db, ride.id, section_id)
     if section is None:
         raise HTTPException(status_code=404, detail="Section not found")
-    stats = sections_svc.section_stats(await sections_svc.slice_points(db, section))
+    rows = await sections_svc.slice_points(db, section)
+    zones = await privacy_svc.effective_zones(db, user.id, ride)
+    # Stats reflect only the visible (un-redacted) portion for non-owners.
+    visible = [p for seg in privacy_svc.clip_segments(rows, zones) for p in seg]
+    stats = sections_svc.section_stats(visible)
     return templates.TemplateResponse(
         request,
         "section_detail.html",
@@ -364,7 +372,8 @@ async def section_points(user: LoggedInUser, db: DB, ride_id: uuid.UUID, section
     if section is None:
         raise HTTPException(status_code=404, detail="Section not found")
     rows = await sections_svc.slice_points(db, section)
-    return JSONResponse(_points_payload(rows))
+    zones = await privacy_svc.effective_zones(db, user.id, ride)
+    return JSONResponse(_points_payload(rows, zones))
 
 
 MAX_PHOTOS = 50
@@ -484,6 +493,9 @@ async def photos_json(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
             select(Photo).where(Photo.ride_id == ride.id, Photo.lat.isnot(None)).order_by(Photo.seq)
         )
     ).scalars().all()
+    # Hide geotagged photos that fall inside the owner's privacy zones.
+    zones = await privacy_svc.effective_zones(db, user.id, ride)
+    rows = [p for p in rows if not privacy_svc.in_any_zone(p.lat, p.lon, zones)]
     return JSONResponse(
         {
             "photos": [
@@ -502,6 +514,10 @@ async def download_gpx(user: LoggedInUser, db: DB, ride_id: uuid.UUID):
     if not ride.gpx_blob_key:
         raise HTTPException(status_code=404, detail="No file")
     data = storage.read(ride.gpx_blob_key)
+    # Non-owners get a copy with in-zone trackpoints stripped; owner gets original.
+    zones = await privacy_svc.effective_zones(db, user.id, ride)
+    if zones:
+        data = privacy_svc.clip_gpx(data, zones)
     return Response(
         content=data,
         media_type="application/gpx+xml",

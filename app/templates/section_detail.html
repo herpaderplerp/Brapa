@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}
-<link rel="stylesheet" href="/static/vendor/leaflet.css">
-<link rel="stylesheet" href="/static/vendor/uplot.min.css">
+<link rel="stylesheet" href="{{ static_url('vendor/leaflet.css') }}">
+<link rel="stylesheet" href="{{ static_url('vendor/uplot.min.css') }}">
 {% endblock %}
 {% block content %}
 <p style="margin-bottom:.25rem">
@@ -27,10 +27,10 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/leaflet.js"></script>
-<script src="/static/vendor/uplot.iife.min.js"></script>
-<script src="/static/js/map.js"></script>
-<script src="/static/js/elevation.js"></script>
+<script src="{{ static_url('vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('vendor/uplot.iife.min.js') }}"></script>
+<script src="{{ static_url('js/map.js') }}"></script>
+<script src="{{ static_url('js/elevation.js') }}"></script>
 <script>
   (function () {
     const unit = "{{ user.unit_distance }}";

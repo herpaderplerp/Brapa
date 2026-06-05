@@ -10,6 +10,7 @@ from app.auth.deps import LoggedInUser
 from app.db import get_db
 from app.models.user import User
 from app.services import feed as feed_svc
+from app.services import privacy as privacy_svc
 from app.services import social
 from app.templating import templates
 
@@ -47,9 +48,12 @@ async def feed_page(
         rows = (await db.execute(select(User).where(User.id.in_(author_ids)))).scalars().all()
         authors = {u.id: u for u in rows}
 
+    # Feed authors are always other users (friends), so clip every thumbnail
+    # against that author's zones.
+    zmap = await privacy_svc.zones_by_user(db, author_ids)
     cards = []
     for ride, author_id, lc, cc, liked in raw:
-        thumb = await feed_svc.track_thumb(db, ride.id)
+        thumb = await feed_svc.track_thumb(db, ride.id, zones=zmap.get(author_id, []))
         cards.append(
             {
                 "ride": ride,

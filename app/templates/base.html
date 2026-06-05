@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ title or "Brapa" }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
   {# Map/chart CSS loaded globally: hx-boost only swaps <body>, so per-page
      head blocks are dropped on boosted navigation — keeping these here means
      Leaflet/uPlot are always styled (else tiles render scattered). #}
-  <link rel="stylesheet" href="/static/vendor/leaflet.css">
-  <link rel="stylesheet" href="/static/vendor/uplot.min.css">
+  <link rel="stylesheet" href="{{ static_url('vendor/leaflet.css') }}">
+  <link rel="stylesheet" href="{{ static_url('vendor/uplot.min.css') }}">
   {% block head %}{% endblock %}
   <!-- Vendored libs (run `make vendor` to populate app/static/vendor) -->
-  <script src="/static/vendor/htmx.min.js" defer></script>
-  <script src="/static/vendor/alpine.min.js" defer></script>
+  <script src="{{ static_url('vendor/htmx.min.js') }}" defer></script>
+  <script src="{{ static_url('vendor/alpine.min.js') }}" defer></script>
 </head>
 <body hx-boost="true">
   <header class="topbar">
