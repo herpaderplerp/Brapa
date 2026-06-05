@@ -15,7 +15,7 @@ from app.models.ride import (
     Ride,
 )
 from app.models.social import Comment, Like
-from app.services import notify, social
+from app.services import notify, privacy, social
 
 
 @dataclass
@@ -117,6 +117,56 @@ async def ride_social(db: AsyncSession, ride_id: uuid.UUID, user_id: uuid.UUID):
     )
 
 
+def _sample_thumb_segment(seg: list, step: int, zones: list) -> list:
+    """Downsample one clipped thumbnail segment without creating zone shortcuts.
+
+    `clip_segments` guarantees each adjacent pair in `seg` is safe to draw, but
+    striding can connect non-adjacent points with a straight SVG line that cuts
+    through a privacy zone. Keep extra intermediate points whenever needed so
+    every sampled connection remains outside the hidden circles.
+    """
+    if not seg:
+        return []
+
+    sampled = [seg[0]]
+    last_idx = 0
+    last_seg_idx = len(seg) - 1
+
+    def crosses_zone(left_idx: int, right_idx: int) -> bool:
+        if not zones:
+            return False
+        left = seg[left_idx]
+        right = seg[right_idx]
+        return privacy._segment_intersects_any_zone(
+            left[0], left[1], right[0], right[1], zones
+        )
+
+    for target_idx in range(step, len(seg), step):
+        while crosses_zone(last_idx, target_idx):
+            safe_idx = target_idx - 1
+            while safe_idx > last_idx and crosses_zone(last_idx, safe_idx):
+                safe_idx -= 1
+            if safe_idx == last_idx:
+                safe_idx += 1
+            sampled.append(seg[safe_idx])
+            last_idx = safe_idx
+        sampled.append(seg[target_idx])
+        last_idx = target_idx
+
+    if last_idx != last_seg_idx:
+        while crosses_zone(last_idx, last_seg_idx):
+            safe_idx = last_seg_idx - 1
+            while safe_idx > last_idx and crosses_zone(last_idx, safe_idx):
+                safe_idx -= 1
+            if safe_idx == last_idx:
+                safe_idx += 1
+            sampled.append(seg[safe_idx])
+            last_idx = safe_idx
+        sampled.append(seg[last_seg_idx])
+
+    return sampled
+
+
 async def track_thumb(
     db: AsyncSession, ride_id: uuid.UUID, w: int = 260, h: int = 120, pad: int = 8, zones=()
 ) -> list[str] | None:
@@ -127,7 +177,6 @@ async def track_thumb(
     rendering cannot reconnect across a protected gap.
     """
     from app.models.ride import RidePoint
-    from app.services import privacy
 
     rows = (
         await db.execute(
@@ -144,13 +193,12 @@ async def track_thumb(
     if len(visible) < 2:
         return None
     # Sub-sample to at most ~120 points for a light SVG, but keep each privacy
-    # gap as its own polyline.
+    # gap as its own polyline and keep any intermediate points needed to avoid
+    # drawing a new straight-line shortcut through a privacy zone.
     step = max(1, len(visible) // 120)
     sampled_segments = []
     for seg in segments:
-        pts = seg[::step]
-        if pts and pts[-1] != seg[-1]:
-            pts.append(seg[-1])
+        pts = _sample_thumb_segment(seg, step, zone_list)
         if len(pts) >= 2:
             sampled_segments.append(pts)
     if not sampled_segments:

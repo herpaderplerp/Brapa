@@ -135,6 +135,32 @@ def test_clip_gpx_splits_outside_points_when_segment_crosses_zone():
     assert 'lon="0.002"' in second_seg
 
 
+def test_thumb_sampling_keeps_detour_points_that_prevent_zone_shortcuts():
+    # More than 120 visible points means thumbnail sampling uses step=2. Put a
+    # one-point detour at an odd index; a naive seg[::step] would skip it and
+    # draw a straight line through the zone from index 120 to 122.
+    seg = []
+    for i in range(120):
+        seg.append((0.003, -0.01 + i * 0.00005))
+    seg.extend([
+        (0.0, -0.002),
+        (0.002, 0.0),
+        (0.0, 0.002),
+    ])
+    for i in range(118):
+        seg.append((0.003, 0.002 + i * 0.00005))
+    assert len(seg) > 120
+    zone = privacy_svc.Zone(lat=0.0, lon=0.0, radius_m=100.0)
+
+    sampled = feed_svc._sample_thumb_segment(seg, len(seg) // 120, [zone])
+
+    assert (0.002, 0.0) in sampled
+    for left, right in zip(sampled, sampled[1:]):
+        assert not privacy_svc._segment_intersects_any_zone(
+            left[0], left[1], right[0], right[1], [zone]
+        )
+
+
 async def test_effective_zones_owner_bypass(db, user):
     ride = await _ride(db, user)
     await _zone(db, user)
