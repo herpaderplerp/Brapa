@@ -93,36 +93,94 @@ def in_any_zone(lat: float, lon: float, zones: list[Zone]) -> bool:
     return any(_dist_m(lat, lon, z.lat, z.lon) <= z.radius_m for z in zones)
 
 
+def _offset_m(lat: float, lon: float, zone: Zone) -> tuple[float, float]:
+    """Return equirectangular x/y metre offsets from `zone` to `lat`/`lon`."""
+    mean_lat = math.radians((lat + zone.lat) / 2.0)
+    x = math.radians(lon - zone.lon) * math.cos(mean_lat) * _EARTH_M
+    y = math.radians(lat - zone.lat) * _EARTH_M
+    return x, y
+
+
+def _segment_intersects_zone(
+    lat1: float, lon1: float, lat2: float, lon2: float, zone: Zone
+) -> bool:
+    """True when the straight segment between two points enters `zone`.
+
+    Track rendering and GPX re-import connect adjacent retained points with a
+    straight line. Two endpoints can both sit outside a privacy zone while that
+    connecting line passes through it, especially after downsampling. Projecting
+    onto a local metre plane around the zone is accurate enough for the maximum
+    2 km radius used here.
+    """
+    x1, y1 = _offset_m(lat1, lon1, zone)
+    x2, y2 = _offset_m(lat2, lon2, zone)
+    dx = x2 - x1
+    dy = y2 - y1
+    denom = dx * dx + dy * dy
+    if denom == 0:
+        return math.hypot(x1, y1) <= zone.radius_m
+    t = max(0.0, min(1.0, -(x1 * dx + y1 * dy) / denom))
+    closest_x = x1 + t * dx
+    closest_y = y1 + t * dy
+    return math.hypot(closest_x, closest_y) <= zone.radius_m
+
+
+def _segment_intersects_any_zone(
+    lat1: float, lon1: float, lat2: float, lon2: float, zones: list[Zone]
+) -> bool:
+    return any(_segment_intersects_zone(lat1, lon1, lat2, lon2, z) for z in zones)
+
+
 def clip_segments(
     items: Iterable,
     zones: list[Zone],
     getlat: Callable = lambda p: p.lat,
     getlon: Callable = lambda p: p.lon,
 ) -> list[list]:
-    """Split `items` (ordered track points) into contiguous runs, dropping any
-    point inside a zone. With no zones, returns a single segment with everything.
-    An all-redacted track returns []."""
+    """Split `items` into visible runs, preserving privacy-zone gaps.
+
+    Points inside a zone are dropped. Adjacent outside points are also split into
+    separate runs when their connecting segment crosses a zone, preventing maps
+    and charts from drawing a straight line through a protected area. With no
+    zones, returns a single segment with everything. An all-redacted track
+    returns [].
+    """
     seq = list(items)
     if not zones:
         return [seq] if seq else []
     segments: list[list] = []
     current: list = []
+    prev = None
+
+    def flush() -> None:
+        nonlocal current
+        if current:
+            segments.append(current)
+            current = []
+
     for it in seq:
-        if in_any_zone(getlat(it), getlon(it), zones):
-            if current:
-                segments.append(current)
-                current = []
-        else:
-            current.append(it)
-    if current:
-        segments.append(current)
+        lat = getlat(it)
+        lon = getlon(it)
+        if in_any_zone(lat, lon, zones):
+            flush()
+            prev = it
+            continue
+        if current and prev is not None and _segment_intersects_any_zone(
+            getlat(prev), getlon(prev), lat, lon, zones
+        ):
+            flush()
+        current.append(it)
+        prev = it
+    flush()
     return segments
 
 
 def clip_gpx(data: bytes, zones: list[Zone]) -> bytes:
-    """Return a GPX byte string with in-zone trackpoints removed. Surviving runs
-    become separate <trkseg>s so the gap is preserved on re-import. Used for the
-    non-owner download path."""
+    """Return GPX with privacy-zone trackpoints and crossing segments removed.
+
+    Surviving runs become separate <trkseg>s so gaps are preserved on re-import.
+    Used for the non-owner download path.
+    """
     if not zones:
         return data
     import gpxpy
@@ -151,13 +209,23 @@ def clip_gpx(data: bytes, zones: list[Zone]) -> bytes:
 
     for pts in sources:
         run: list = []
+        prev = None
         for pt in pts:
-            if in_any_zone(pt.latitude, pt.longitude, zones):
+            lat = pt.latitude
+            lon = pt.longitude
+            if in_any_zone(lat, lon, zones):
                 if run:
                     flush(run)
                     run = []
-            else:
-                run.append(pt)
+                prev = pt
+                continue
+            if run and prev is not None and _segment_intersects_any_zone(
+                prev.latitude, prev.longitude, lat, lon, zones
+            ):
+                flush(run)
+                run = []
+            run.append(pt)
+            prev = pt
         if run:
             flush(run)
 
