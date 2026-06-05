@@ -15,7 +15,9 @@
   <a href="/rides/{{ c.ride.id }}" class="feed-thumb">
     {% if c.thumb %}
       <svg viewBox="0 0 260 120" width="100%" height="120" preserveAspectRatio="xMidYMid meet">
-        <polyline points="{{ c.thumb }}" fill="none" stroke="#ff5a36" stroke-width="2"/>
+        {% for points in c.thumb %}
+          <polyline points="{{ points }}" fill="none" stroke="#ff5a36" stroke-width="2"/>
+        {% endfor %}
       </svg>
     {% endif %}
     <strong style="display:block;margin-top:.4rem">{{ c.ride.title or "Ride" }}</strong>

@@ -119,12 +119,12 @@ async def ride_social(db: AsyncSession, ride_id: uuid.UUID, user_id: uuid.UUID):
 
 async def track_thumb(
     db: AsyncSession, ride_id: uuid.UUID, w: int = 260, h: int = 120, pad: int = 8, zones=()
-) -> str | None:
-    """Normalized SVG polyline points for a mini route thumbnail (keyless).
+) -> list[str] | None:
+    """Normalized SVG polyline point strings for a mini route thumbnail.
 
-    `zones` (the ride owner's privacy zones) drop any in-zone point so the
-    thumbnail can't trace the route through a hidden area. The thumbnail is a
-    single polyline, so a clipped track simply omits the hidden points.
+    `zones` (the ride owner's privacy zones) split the thumbnail into separate
+    polylines whenever points or connecting segments enter a hidden area, so SVG
+    rendering cannot reconnect across a protected gap.
     """
     from app.models.ride import RidePoint
     from app.services import privacy
@@ -136,26 +136,44 @@ async def track_thumb(
             .order_by(RidePoint.seq)
         )
     ).all()
-    if zones:
-        rows = [r for r in rows if not privacy.in_any_zone(r[0], r[1], list(zones))]
-    if len(rows) < 2:
+    zone_list = list(zones)
+    segments = privacy.clip_segments(
+        rows, zone_list, getlat=lambda r: r[0], getlon=lambda r: r[1]
+    )
+    visible = [r for seg in segments for r in seg]
+    if len(visible) < 2:
         return None
-    # Sub-sample to at most ~120 points for a light SVG.
-    step = max(1, len(rows) // 120)
-    pts = rows[::step]
-    lats = [r[0] for r in pts]
-    lons = [r[1] for r in pts]
+    # Sub-sample to at most ~120 points for a light SVG, but keep each privacy
+    # gap as its own polyline.
+    step = max(1, len(visible) // 120)
+    sampled_segments = []
+    for seg in segments:
+        pts = seg[::step]
+        if pts and pts[-1] != seg[-1]:
+            pts.append(seg[-1])
+        if len(pts) >= 2:
+            sampled_segments.append(pts)
+    if not sampled_segments:
+        return None
+
+    sampled = [r for seg in sampled_segments for r in seg]
+    lats = [r[0] for r in sampled]
+    lons = [r[1] for r in sampled]
     min_lat, max_lat = min(lats), max(lats)
     min_lon, max_lon = min(lons), max(lons)
     span_lat = (max_lat - min_lat) or 1e-6
     span_lon = (max_lon - min_lon) or 1e-6
     iw, ih = w - 2 * pad, h - 2 * pad
-    coords = []
-    for lat, lon in zip(lats, lons):
-        x = pad + (lon - min_lon) / span_lon * iw
-        y = pad + (1 - (lat - min_lat) / span_lat) * ih  # invert y (north up)
-        coords.append(f"{x:.1f},{y:.1f}")
-    return " ".join(coords)
+
+    polylines = []
+    for seg in sampled_segments:
+        coords = []
+        for lat, lon in seg:
+            x = pad + (lon - min_lon) / span_lon * iw
+            y = pad + (1 - (lat - min_lat) / span_lat) * ih  # invert y (north up)
+            coords.append(f"{x:.1f},{y:.1f}")
+        polylines.append(" ".join(coords))
+    return polylines
 
 
 async def feed(

@@ -10,6 +10,7 @@ from app.models.photo import Photo
 from app.models.privacy import PrivacyZone
 from app.models.ride import STATUS_DONE, VISIBILITY_PUBLIC, Ride, RidePoint
 from app.models.user import User
+from app.services import feed as feed_svc
 from app.services import privacy as privacy_svc
 
 
@@ -69,6 +70,19 @@ def test_clip_segments_splits_around_zone():
     assert seqs == [[0, 1, 2, 3], [7, 8, 9]]
 
 
+def test_clip_segments_splits_outside_points_when_segment_crosses_zone():
+    rid = uuid.uuid4()
+    pts = [
+        RidePoint(ride_id=rid, seq=0, lat=0.0, lon=-0.002),
+        RidePoint(ride_id=rid, seq=1, lat=0.0, lon=0.002),
+    ]
+    zone = privacy_svc.Zone(lat=0.0, lon=0.0, radius_m=100.0)
+
+    segs = privacy_svc.clip_segments(pts, [zone])
+
+    assert [[p.seq for p in seg] for seg in segs] == [[0], [1]]
+
+
 def test_clip_segments_no_zones_is_single_segment():
     rid = uuid.uuid4()
     segs = privacy_svc.clip_segments(_pts(rid), [])
@@ -102,6 +116,25 @@ def test_clip_gpx_drops_in_zone_points():
     assert out.count("<trkseg>") == 2  # split into two segments
 
 
+def test_clip_gpx_splits_outside_points_when_segment_crosses_zone():
+    gpx = (
+        '<?xml version="1.0"?><gpx version="1.1"><trk><trkseg>'
+        '<trkpt lat="0.0" lon="-0.004"></trkpt>'
+        '<trkpt lat="0.0" lon="-0.002"></trkpt>'
+        '<trkpt lat="0.0" lon="0.002"></trkpt>'
+        '<trkpt lat="0.0" lon="0.004"></trkpt>'
+        '</trkseg></trk></gpx>'
+    ).encode()
+    zone = privacy_svc.Zone(lat=0.0, lon=0.0, radius_m=100.0)
+
+    out = privacy_svc.clip_gpx(gpx, [zone]).decode()
+
+    assert out.count("<trkseg>") == 2
+    assert out.index('lon="-0.002"') < out.index("</trkseg>")
+    second_seg = out.split("<trkseg>", 2)[2]
+    assert 'lon="0.002"' in second_seg
+
+
 async def test_effective_zones_owner_bypass(db, user):
     ride = await _ride(db, user)
     await _zone(db, user)
@@ -113,6 +146,28 @@ async def test_effective_zones_owner_bypass(db, user):
         assert len(await privacy_svc.effective_zones(db, stranger.id, ride)) == 1
     finally:
         await _cleanup(db, ride.id, user.id, stranger.id)
+
+
+async def test_track_thumb_preserves_segment_crossing_gaps(db, user):
+    ride = Ride(
+        user_id=user.id,
+        processing_status=STATUS_DONE,
+        published=True,
+        visibility=VISIBILITY_PUBLIC,
+    )
+    db.add(ride)
+    await db.flush()
+    for seq, lon in enumerate([-0.004, -0.002, 0.002, 0.004]):
+        db.add(RidePoint(ride_id=ride.id, seq=seq, lat=0.0, lon=lon))
+    await db.commit()
+    zone = privacy_svc.Zone(lat=0.0, lon=0.0, radius_m=100.0)
+    try:
+        thumb = await feed_svc.track_thumb(db, ride.id, zones=[zone])
+
+        assert thumb is not None
+        assert len(thumb) == 2
+    finally:
+        await _cleanup(db, ride.id, user.id)
 
 
 # --- routes ----------------------------------------------------------------
