@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import httpx
@@ -15,6 +16,14 @@ from app.services import sections as sections_svc
 
 def _client():
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://x")
+
+
+async def _csrf_token(client, path):
+    r = await client.get(path)
+    assert r.status_code == 200
+    match = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
+    assert match is not None
+    return match.group(1)
 
 
 async def _ride_with_points(db, owner, n=10, visibility=VISIBILITY_PUBLIC):
@@ -41,6 +50,7 @@ async def _cleanup(db, ride_id, *user_ids):
 
 
 # --- service ---------------------------------------------------------------
+
 
 async def test_create_orders_and_clamps(db, user):
     ride = await _ride_with_points(db, user, n=10)
@@ -95,21 +105,31 @@ def test_section_stats_derives_from_slice():
 def test_section_stats_handles_empty_slice():
     s = sections_svc.section_stats([])
     assert s == {
-        "distance_m": 0.0, "elev_gain": 0.0, "duration_s": 0.0,
-        "avg_speed": 0.0, "max_speed": None,
+        "distance_m": 0.0,
+        "elev_gain": 0.0,
+        "duration_s": 0.0,
+        "avg_speed": 0.0,
+        "max_speed": None,
     }
 
 
 # --- routes ----------------------------------------------------------------
+
 
 async def test_owner_creates_section_via_route(db, user):
     ride = await _ride_with_points(db, user, n=10)
     app.dependency_overrides[require_login] = lambda: user
     try:
         async with _client() as c:
+            csrf_token = await _csrf_token(c, f"/rides/{ride.id}")
             r = await c.post(
                 f"/rides/{ride.id}/sections",
-                data={"name": "Canyon run", "start_seq": "2", "end_seq": "7"},
+                data={
+                    "csrf_token": csrf_token,
+                    "name": "Canyon run",
+                    "start_seq": "2",
+                    "end_seq": "7",
+                },
             )
         assert r.status_code == 200
         assert "Canyon run" in r.text
@@ -125,9 +145,15 @@ async def test_create_bad_range_is_422(db, user):
     app.dependency_overrides[require_login] = lambda: user
     try:
         async with _client() as c:
+            csrf_token = await _csrf_token(c, f"/rides/{ride.id}")
             r = await c.post(
                 f"/rides/{ride.id}/sections",
-                data={"name": "x", "start_seq": "2", "end_seq": "2"},
+                data={
+                    "csrf_token": csrf_token,
+                    "name": "x",
+                    "start_seq": "2",
+                    "end_seq": "2",
+                },
             )
         assert r.status_code == 422
     finally:
@@ -142,9 +168,15 @@ async def test_non_owner_cannot_create(db, user):
     app.dependency_overrides[require_login] = lambda: user  # not the owner
     try:
         async with _client() as c:
+            csrf_token = await _csrf_token(c, f"/rides/{ride.id}")
             r = await c.post(
                 f"/rides/{ride.id}/sections",
-                data={"name": "nope", "start_seq": "1", "end_seq": "3"},
+                data={
+                    "csrf_token": csrf_token,
+                    "name": "nope",
+                    "start_seq": "1",
+                    "end_seq": "3",
+                },
             )
         assert r.status_code == 404
     finally:
@@ -208,8 +240,11 @@ async def test_owner_deletes_section(db, user):
     app.dependency_overrides[require_login] = lambda: user
     try:
         async with _client() as c:
+            csrf_token = await _csrf_token(c, f"/rides/{ride.id}")
             r = await c.post(
-                f"/rides/{ride.id}/sections/{section.id}/delete", follow_redirects=False
+                f"/rides/{ride.id}/sections/{section.id}/delete",
+                data={"csrf_token": csrf_token},
+                follow_redirects=False,
             )
         assert r.status_code == 303
         db.expunge_all()
@@ -219,6 +254,7 @@ async def test_owner_deletes_section(db, user):
 
 
 # --- cross-ride manage page ------------------------------------------------
+
 
 async def test_manage_page_lists_only_own_sections(db, user):
     other = User(email=f"{uuid.uuid4().hex}@t.dev", display_name="Other")
@@ -249,10 +285,14 @@ async def test_rename_and_delete_via_manage_routes(db, user):
     app.dependency_overrides[require_login] = lambda: user
     try:
         async with _client() as c:
-            r = await c.post(f"/sections/{sid}/rename", data={"name": "New name"})
+            csrf_token = await _csrf_token(c, "/sections")
+            r = await c.post(
+                f"/sections/{sid}/rename",
+                data={"csrf_token": csrf_token, "name": "New name"},
+            )
             assert r.status_code == 200
             assert "New name" in r.text and "Old name" not in r.text
-            d = await c.post(f"/sections/{sid}/delete")
+            d = await c.post(f"/sections/{sid}/delete", data={"csrf_token": csrf_token})
             assert d.status_code == 200
         db.expunge_all()
         assert await db.get(RideSection, sid) is None
@@ -267,7 +307,11 @@ async def test_rename_blank_is_422(db, user):
     app.dependency_overrides[require_login] = lambda: user
     try:
         async with _client() as c:
-            r = await c.post(f"/sections/{section.id}/rename", data={"name": "   "})
+            csrf_token = await _csrf_token(c, "/sections")
+            r = await c.post(
+                f"/sections/{section.id}/rename",
+                data={"csrf_token": csrf_token, "name": "   "},
+            )
         assert r.status_code == 422
     finally:
         await _cleanup(db, ride.id, user.id)
@@ -278,16 +322,49 @@ async def test_manage_routes_reject_non_owner(db, user):
     db.add(owner)
     await db.flush()
     ride = await _ride_with_points(db, owner, n=10)
+    own_ride = await _ride_with_points(db, user, n=10)
     section = await sections_svc.create(db, ride.id, "Owned", start_seq=1, end_seq=4)
     await db.commit()
     app.dependency_overrides[require_login] = lambda: user  # stranger
     try:
         async with _client() as c:
-            r = await c.post(f"/sections/{section.id}/rename", data={"name": "Hijack"})
-            d = await c.post(f"/sections/{section.id}/delete")
+            csrf_token = await _csrf_token(c, f"/rides/{own_ride.id}")
+            r = await c.post(
+                f"/sections/{section.id}/rename",
+                data={"csrf_token": csrf_token, "name": "Hijack"},
+            )
+            d = await c.post(f"/sections/{section.id}/delete", data={"csrf_token": csrf_token})
         assert r.status_code == 404 and d.status_code == 404
     finally:
         await _cleanup(db, ride.id, owner.id)
+        await _cleanup(db, own_ride.id, user.id)
+
+
+async def test_section_mutations_require_csrf_token(db, user):
+    ride = await _ride_with_points(db, user, n=10)
+    section = await sections_svc.create(db, ride.id, "Protected", start_seq=1, end_seq=4)
+    await db.commit()
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        async with _client() as c:
+            create = await c.post(
+                f"/rides/{ride.id}/sections",
+                data={"name": "Forged", "start_seq": "2", "end_seq": "5"},
+            )
+            rename = await c.post(f"/sections/{section.id}/rename", data={"name": "Forged"})
+            manage_delete = await c.post(f"/sections/{section.id}/delete")
+            ride_delete = await c.post(
+                f"/rides/{ride.id}/sections/{section.id}/delete", follow_redirects=False
+            )
+        assert create.status_code == 403
+        assert rename.status_code == 403
+        assert manage_delete.status_code == 403
+        assert ride_delete.status_code == 403
+        db.expunge_all()
+        rows = await sections_svc.list_for_ride(db, ride.id)
+        assert len(rows) == 1 and rows[0].name == "Protected"
+    finally:
+        await _cleanup(db, ride.id, user.id)
 
 
 async def test_sections_cascade_on_ride_delete(db, user):
