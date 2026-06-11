@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Notifications</h1>
+{% if items %}
+  <form method="post" action="/notifications/read" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ notifications_read_csrf_token }}">
+    <button type="submit">Mark all read</button>
+  </form>
+{% endif %}
 {% if not items %}
   <div class="card" style="color:var(--muted)">Nothing yet.</div>
 {% endif %}

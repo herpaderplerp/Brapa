@@ -1,7 +1,13 @@
+import re
 import uuid
 
+import httpx
 import pytest
 
+from app.auth.deps import require_login
+from app.db import engine as global_engine
+from app.main import app
+from app.models.notify import Notification
 from app.models.ride import STATUS_DONE, VISIBILITY_PUBLIC, Ride
 from app.models.user import User
 from app.services import email as email_svc
@@ -23,6 +29,18 @@ async def _ride(db, owner) -> Ride:
     db.add(r)
     await db.flush()
     return r
+
+
+def _client():
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://x")
+
+
+async def _notifications_csrf_token(client):
+    r = await client.get("/notifications")
+    assert r.status_code == 200
+    match = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
+    assert match is not None
+    return match.group(1)
 
 
 @pytest.mark.asyncio
@@ -85,3 +103,75 @@ def test_email_pref_gating(monkeypatch):
     assert email_svc.maybe_send(Rec(), "like", "s", "b") is False
     assert email_svc.maybe_send(Rec(), "comment", "s", "b") is True
     assert len(sent) == 1
+
+
+@pytest.mark.asyncio
+async def test_notifications_page_get_does_not_mark_read(db, user):
+    actor = await _user(db, "Actor")
+    await notify_svc.create(db, recipient_id=user.id, type="friend_request", actor_id=actor.id)
+    await db.commit()
+
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        async with _client() as c:
+            r = await c.get("/notifications")
+        assert r.status_code == 200
+        assert await notify_svc.unread_count(db, user.id) == 1
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Notification).where(Notification.user_id == user.id))
+        await db.execute(delete(User).where(User.id.in_([user.id, actor.id])))
+        await db.commit()
+        await global_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_mark_notifications_read_requires_csrf(db, user):
+    actor = await _user(db, "Actor")
+    await notify_svc.create(db, recipient_id=user.id, type="friend_request", actor_id=actor.id)
+    await db.commit()
+
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        async with _client() as c:
+            r = await c.post("/notifications/read", follow_redirects=False)
+        assert r.status_code == 403
+        assert await notify_svc.unread_count(db, user.id) == 1
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Notification).where(Notification.user_id == user.id))
+        await db.execute(delete(User).where(User.id.in_([user.id, actor.id])))
+        await db.commit()
+        await global_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_mark_notifications_read_with_csrf(db, user):
+    actor = await _user(db, "Actor")
+    await notify_svc.create(db, recipient_id=user.id, type="friend_request", actor_id=actor.id)
+    await db.commit()
+
+    app.dependency_overrides[require_login] = lambda: user
+    try:
+        async with _client() as c:
+            csrf_token = await _notifications_csrf_token(c)
+            r = await c.post(
+                "/notifications/read",
+                data={"csrf_token": csrf_token},
+                follow_redirects=False,
+            )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/notifications"
+        assert await notify_svc.unread_count(db, user.id) == 0
+    finally:
+        app.dependency_overrides.clear()
+        from sqlalchemy import delete
+
+        await db.execute(delete(Notification).where(Notification.user_id == user.id))
+        await db.execute(delete(User).where(User.id.in_([user.id, actor.id])))
+        await db.commit()
+        await global_engine.dispose()
