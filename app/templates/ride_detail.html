@@ -78,6 +78,7 @@
     <form id="section-form" hidden method="post"
           hx-post="/rides/{{ ride.id }}/sections"
           hx-target="#section-list" hx-swap="outerHTML" style="margin-top:.5rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="start_seq" value="">
       <input type="hidden" name="end_seq" value="">
       <p id="section-hint" style="color:var(--accent);margin:.25rem 0"></p>

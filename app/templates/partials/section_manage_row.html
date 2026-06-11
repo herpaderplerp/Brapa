@@ -3,6 +3,7 @@
     <form hx-post="/sections/{{ s.id }}/rename"
           hx-target="#section-manage-list" hx-swap="outerHTML"
           style="display:flex;gap:.5rem;align-items:center">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="text" name="name" maxlength="140" required value="{{ s.name }}"
              aria-label="Section name" style="flex:1;min-width:0">
       <button class="btn" type="submit">Rename</button>
@@ -16,6 +17,7 @@
     <a class="link-btn" href="/rides/{{ s.ride_id }}/sections/{{ s.id }}">Open ↗</a>
     <button class="link-btn danger" type="button"
             hx-post="/sections/{{ s.id }}/delete"
+            hx-vals='{"csrf_token":"{{ csrf_token }}"}'
             hx-target="#section-manage-list" hx-swap="outerHTML"
             hx-confirm="Delete this section?">Delete</button>
   </div>

@@ -3,6 +3,7 @@ with inline rename + delete. Per-ride create/view/delete still live on the ride
 detail page (app/routers/rides.py); these routes are keyed by section id alone
 and verify ownership via the parent ride, so no ride id is needed in the path.
 """
+
 import uuid
 from typing import Annotated
 
@@ -11,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import LoggedInUser
+from app.csrf import csrf_token, require_csrf_token
 from app.db import get_db
 from app.services import sections as svc
 from app.templating import templates
@@ -23,7 +25,9 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 async def _render_list(request: Request, db: AsyncSession, user_id: uuid.UUID) -> HTMLResponse:
     sections = await svc.list_for_user(db, user_id)
     return templates.TemplateResponse(
-        request, "partials/section_manage_list.html", {"sections": sections}
+        request,
+        "partials/section_manage_list.html",
+        {"sections": sections, "csrf_token": csrf_token(request)},
     )
 
 
@@ -38,7 +42,9 @@ async def _owned(db: AsyncSession, user_id: uuid.UUID, section_id: uuid.UUID):
 async def manage_page(request: Request, user: LoggedInUser, db: DB):
     sections = await svc.list_for_user(db, user.id)
     return templates.TemplateResponse(
-        request, "sections_manage.html", {"title": "Your sections", "sections": sections}
+        request,
+        "sections_manage.html",
+        {"title": "Your sections", "sections": sections, "csrf_token": csrf_token(request)},
     )
 
 
@@ -47,6 +53,7 @@ async def rename_section(
     request: Request,
     user: LoggedInUser,
     db: DB,
+    _: Annotated[None, Depends(require_csrf_token)],
     section_id: uuid.UUID,
     name: Annotated[str, Form()],
 ):
@@ -59,7 +66,13 @@ async def rename_section(
 
 
 @router.post("/{section_id}/delete", response_class=HTMLResponse)
-async def delete_section(request: Request, user: LoggedInUser, db: DB, section_id: uuid.UUID):
+async def delete_section(
+    request: Request,
+    user: LoggedInUser,
+    db: DB,
+    _: Annotated[None, Depends(require_csrf_token)],
+    section_id: uuid.UUID,
+):
     section = await _owned(db, user.id, section_id)
     await db.delete(section)
     await db.flush()

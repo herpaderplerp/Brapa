@@ -10,6 +10,7 @@
         {% if is_owner %}
         <form method="post" action="/rides/{{ ride.id }}/sections/{{ s.id }}/delete"
               onsubmit="return confirm('Delete this section?')" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="link-btn danger" type="submit" title="Delete">✕</button>
         </form>
         {% endif %}

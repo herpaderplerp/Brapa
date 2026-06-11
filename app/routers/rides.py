@@ -40,6 +40,7 @@ from app.services import exif
 from app.services import feed as feed_svc
 from app.services import garage as garage_svc
 from app.services import privacy as privacy_svc
+from app.csrf import csrf_token, require_csrf_token
 from app.services import sections as sections_svc
 from app.services import social
 from app.services import storage
@@ -317,6 +318,7 @@ async def create_section(
     request: Request,
     user: LoggedInUser,
     db: DB,
+    _: Annotated[None, Depends(require_csrf_token)],
     ride_id: uuid.UUID,
     name: Annotated[str, Form()],
     start_seq: Annotated[int, Form()],
@@ -332,12 +334,18 @@ async def create_section(
     return templates.TemplateResponse(
         request,
         "partials/section_list.html",
-        {"ride": ride, "sections": rows, "is_owner": True},
+        {"ride": ride, "sections": rows, "is_owner": True, "csrf_token": csrf_token(request)},
     )
 
 
 @router.post("/{ride_id}/sections/{section_id}/delete")
-async def delete_section(user: LoggedInUser, db: DB, ride_id: uuid.UUID, section_id: uuid.UUID):
+async def delete_section(
+    user: LoggedInUser,
+    db: DB,
+    _: Annotated[None, Depends(require_csrf_token)],
+    ride_id: uuid.UUID,
+    section_id: uuid.UUID,
+):
     await _owned_ride(db, user.id, ride_id)
     section = await sections_svc.get(db, ride_id, section_id)
     if section is not None:
@@ -574,6 +582,7 @@ async def ride_detail(request: Request, user: LoggedInUser, db: DB, ride_id: uui
             "like_count": likes,
             "liked": liked,
             "comments": comments,
+            "csrf_token": csrf_token(request),
         },
     )
 
